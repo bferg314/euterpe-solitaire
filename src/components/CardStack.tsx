@@ -39,6 +39,7 @@ export const CardStack: React.FC<CardStackProps> = ({
 
   return (
     <div
+      id={`tableau-col-${columnIndex}`}
       className="card-stack-column"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -60,6 +61,7 @@ export const CardStack: React.FC<CardStackProps> = ({
         return (
           <div
             key={card.instanceId}
+            id={`card-${card.instanceId}`}
             className="stacked-card-wrapper"
             style={{
               top: `${topOffset}px`,

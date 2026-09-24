@@ -30,6 +30,7 @@ interface HeaderBarProps {
   canFork?: boolean;
   branchCount?: number;
   isDeadlocked?: boolean;
+  ambientVacuumEnabled?: boolean;
   soundEnabled: boolean;
   onSelectMode: (mode: GameMode) => void;
   onNewGame: () => void;
@@ -38,6 +39,7 @@ interface HeaderBarProps {
   onHint: () => void;
   onAutoFinish: () => void;
   onOpenFork: () => void;
+  onToggleAmbientVacuum?: () => void;
   onToggleSound: () => void;
   onOpenSeedModal: () => void;
   onOpenStatsModal: () => void;
@@ -60,6 +62,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   canFork = true,
   branchCount = 0,
   isDeadlocked = false,
+  ambientVacuumEnabled = true,
   soundEnabled,
   onSelectMode,
   onNewGame,
@@ -68,6 +71,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onHint,
   onAutoFinish,
   onOpenFork,
+  onToggleAmbientVacuum,
   onToggleSound,
   onOpenSeedModal,
   onOpenStatsModal,
@@ -216,6 +220,21 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <GitFork size={16} />
           {branchCount > 0 && <span className="header-branch-badge">{branchCount}</span>}
         </button>
+
+        {onToggleAmbientVacuum && (gameMode === 'klondike-1' || gameMode === 'klondike-3') && (
+          <button
+            className={`icon-btn btn-vacuum ${ambientVacuumEnabled ? 'vacuum-active' : ''}`}
+            onClick={onToggleAmbientVacuum}
+            title={
+              ambientVacuumEnabled
+                ? 'Safe-Play Foundation Vacuum: Enabled (Auto-sweeping safe cards)'
+                : 'Safe-Play Foundation Vacuum: Disabled (Click to enable)'
+            }
+          >
+            <Sparkles size={16} />
+            {ambientVacuumEnabled && <span className="vacuum-indicator-dot" />}
+          </button>
+        )}
 
         <div className="btn-divider" />
 

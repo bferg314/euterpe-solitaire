@@ -2758,5 +2758,94 @@ body, html {
   font-weight: 700;
 }
 
+/* ==========================================================================
+   Friction Reducers: Smart Destination Tap & Ambient Vacuum
+   ========================================================================== */
+
+/* Ambient Vacuum Header Toggle */
+.btn-vacuum {
+  position: relative;
+}
+
+.btn-vacuum.vacuum-active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.vacuum-indicator-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+}
+
+/* Golden Vector Path Flight Animation */
+.flying-card-overlay-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.flying-card-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.flying-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.7));
+}
+
+.flying-card-wrapper.smart-tap-glow .flying-card-inner {
+  box-shadow: 0 0 25px rgba(212, 175, 55, 0.75), 0 0 45px rgba(212, 175, 55, 0.35);
+  border-radius: 8px;
+}
+
+.flying-card-wrapper.vacuum-glow .flying-card-inner {
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.75), 0 0 45px rgba(56, 189, 248, 0.35);
+  border-radius: 8px;
+}
+
+.golden-vector-trail {
+  position: absolute;
+  inset: -3px;
+  border-radius: 10px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.4) 0%, transparent 60%);
+  animation: vector-shimmer 0.25s ease-out forwards;
+}
+
+.vacuum-glow .golden-vector-trail {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.45) 0%, transparent 60%);
+}
+
+@keyframes vector-shimmer {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 0.3;
+    transform: scale(1.04);
+  }
+}
+
+
 
 

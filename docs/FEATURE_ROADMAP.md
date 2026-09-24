@@ -7,13 +7,15 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 ## 1. Friction Reducers
 *Automating mechanical toil and eliminating physical fatigue to keep the player’s focus 100% on puzzle strategy.*
 
-### 1.1 Smart Destination Tap
+### 1.1 Smart Destination Tap `[Implemented]`
 * **Description:** A single tap on any movable card instantly animates it along a subtle golden vector path to its most logical destination (Foundations take highest priority, followed by the longest or least restrictive Tableau column).
 * **Value Proposition:** Eliminates drag-and-drop fatigue and cumbersome mouse travel across high-resolution displays or trackpads, speeding up comfortable one-handed play.
+* **Status:** Implemented (Smart heuristic scorer evaluating foundations first, then tableau columns weighted by exposed face-down cards and column depth; paired with luxury golden-vector flight physics in `FlyingCardOverlay.tsx`).
 
-### 1.2 Safe-Play Foundation Vacuum (Ambient Sweep)
+### 1.2 Safe-Play Foundation Vacuum (Ambient Sweep) `[Implemented]`
 * **Description:** An optional parlor toggle that automatically lifts cards to the Foundation piles *only* when they are mathematically guaranteed to never be needed again in the Tableau (e.g., moving a 4 to a foundation only after both 3s of the opposite color are already locked into foundations).
 * **Value Proposition:** Relieves the repetitive chore of manual foundation stacking without the risk of accidental premature moves that could trap a critical sequence below.
+* **Status:** Implemented (Strict mathematical safety algorithm: Aces & 2s unconditionally; rank $R \ge 3$ only when both opposite-color foundations $\ge R - 1$; toggleable via the header bar `Sparkles` button, persistent in `localStorage`, animated via subtle vacuum shimmer, and fully reversible via Undo).
 
 ### 1.3 Stock Wheel Scrubbing
 * **Description:** In 3-card Klondike, allows mouse-wheel scrolling or a continuous horizontal swipe across the stock pile to rapidly cycle through draw rotations, automatically braking when a playable card hits the waste.

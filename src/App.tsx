@@ -26,6 +26,7 @@ import { ForkModal } from './components/ForkModal';
 import { DeadlockBanner } from './components/DeadlockBanner';
 import type { TimelineStep } from './types/fork';
 import { checkKlondikeDeadlock, checkPyramidDeadlock, tagMoveTransition } from './engines/deadlockDetector';
+import { getSavedSettings, saveSettings, type ParlorComfortSettings } from './services/settingsService';
 import { GitFork } from 'lucide-react';
 
 interface ConfirmDialogConfig {
@@ -68,6 +69,23 @@ export const App: React.FC = () => {
   const [showDeadlockBanner, setShowDeadlockBanner] = useState(false);
   const [showForkModal, setShowForkModal] = useState(false);
   const [forkPreviewIndex, setForkPreviewIndex] = useState<number | null>(null);
+
+  // Parlor Comfort Settings (Ambient Vacuum & Smart Tap)
+  const [comfortSettings, setComfortSettings] = useState<ParlorComfortSettings>(() => getSavedSettings());
+
+  const handleToggleAmbientVacuum = () => {
+    setComfortSettings((prev) => {
+      const next = { ...prev, ambientVacuumEnabled: !prev.ambientVacuumEnabled };
+      saveSettings(next);
+      setResumeMessage(
+        next.ambientVacuumEnabled
+          ? 'Safe-Play Foundation Vacuum: Enabled (Auto-sweeping safe cards)'
+          : 'Safe-Play Foundation Vacuum: Disabled'
+      );
+      setTimeout(() => setResumeMessage(null), 3000);
+      return next;
+    });
+  };
 
   // Gameplay Metrics
   const [moves, setMoves] = useState(0);
@@ -848,6 +866,7 @@ export const App: React.FC = () => {
         canFork={moves > 0}
         branchCount={branchCount}
         isDeadlocked={isDeadlocked}
+        ambientVacuumEnabled={comfortSettings.ambientVacuumEnabled}
         soundEnabled={soundEnabled}
         onSelectMode={handleRequestSelectMode}
         onNewGame={handleRequestNewGame}
@@ -859,6 +878,7 @@ export const App: React.FC = () => {
           setShowForkModal(true);
           setForkPreviewIndex(timelineSteps.length > 0 ? timelineSteps.length - 1 : 0);
         }}
+        onToggleAmbientVacuum={handleToggleAmbientVacuum}
         onToggleSound={handleToggleSound}
         onOpenSeedModal={() => setShowSeedModal(true)}
         onOpenStatsModal={() => setShowStatsModal(true)}
@@ -903,6 +923,8 @@ export const App: React.FC = () => {
             state={displayKlondikeState}
             deck={deck}
             hintCardId={forkPreviewIndex !== null ? null : hintCardId}
+            ambientVacuumEnabled={comfortSettings.ambientVacuumEnabled}
+            smartTapEnabled={comfortSettings.smartTapEnabled}
             onStateChange={handleKlondikeChange}
           />
         ) : null}
