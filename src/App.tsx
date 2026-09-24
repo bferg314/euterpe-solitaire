@@ -22,6 +22,11 @@ import { DeckManagerModal } from './components/DeckManagerModal';
 import { ThemeModal } from './components/ThemeModal';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmModal } from './components/ConfirmModal';
+import { ForkModal } from './components/ForkModal';
+import { DeadlockBanner } from './components/DeadlockBanner';
+import type { TimelineStep } from './types/fork';
+import { checkKlondikeDeadlock, checkPyramidDeadlock, tagMoveTransition } from './engines/deadlockDetector';
+import { GitFork } from 'lucide-react';
 
 interface ConfirmDialogConfig {
   isOpen: boolean;
@@ -53,6 +58,16 @@ export const App: React.FC = () => {
   const [klondikeFuture, setKlondikeFuture] = useState<KlondikeState[]>([]);
   const [pyramidHistory, setPyramidHistory] = useState<PyramidState[]>([]);
   const [pyramidFuture, setPyramidFuture] = useState<PyramidState[]>([]);
+
+  // The Fork: Move Descriptions & Timeline Branching
+  const [moveDescriptions, setMoveDescriptions] = useState<string[]>(['Initial Deal']);
+  const [futureMoveDescriptions, setFutureMoveDescriptions] = useState<string[]>([]);
+  const [branchCount, setBranchCount] = useState(0);
+  const [isDeadlocked, setIsDeadlocked] = useState(false);
+  const [deadlockReason, setDeadlockReason] = useState<string | undefined>(undefined);
+  const [showDeadlockBanner, setShowDeadlockBanner] = useState(false);
+  const [showForkModal, setShowForkModal] = useState(false);
+  const [forkPreviewIndex, setForkPreviewIndex] = useState<number | null>(null);
 
   // Gameplay Metrics
   const [moves, setMoves] = useState(0);
@@ -93,6 +108,13 @@ export const App: React.FC = () => {
       setScore(0);
       setTimeSeconds(0);
       setHintCardId(null);
+      setMoveDescriptions(['Initial Deal']);
+      setFutureMoveDescriptions([]);
+      setBranchCount(0);
+      setIsDeadlocked(false);
+      setShowDeadlockBanner(false);
+      setShowForkModal(false);
+      setForkPreviewIndex(null);
       clearActiveGame();
 
       let computedPar = 0;
@@ -142,11 +164,22 @@ export const App: React.FC = () => {
           setKlondikeFuture(saved.klondikeFuture || []);
           setPyramidHistory(saved.pyramidHistory || []);
           setPyramidFuture(saved.pyramidFuture || []);
+          setBranchCount(saved.branchCount || 0);
+          setMoveDescriptions(
+            saved.moveDescriptions && saved.moveDescriptions.length > 0
+              ? saved.moveDescriptions
+              : ['Initial Deal']
+          );
+          setFutureMoveDescriptions([]);
+          setIsDeadlocked(false);
+          setShowDeadlockBanner(false);
+          setShowForkModal(false);
+          setForkPreviewIndex(null);
           const restoredPar = saved.par || getOrComputePar(saved.gameMode, saved.difficulty, saved.seed, saved.klondikeState, saved.pyramidState);
           setPar(restoredPar);
           setIsWon(false);
           setShowVictoryModal(false);
-          setResumeMessage(`Resumed game in progress (${saved.moves} moves • Par ${restoredPar})`);
+          setResumeMessage(`Resumed game in progress (${saved.moves} moves • Par ${restoredPar}${saved.branchCount ? ` • Branch #${saved.branchCount}` : ''})`);
           setTimeout(() => setResumeMessage(null), 4000);
         } else {
           startNewGameWithDeck(loaded, gameMode, difficulty, seed);
@@ -220,6 +253,8 @@ export const App: React.FC = () => {
         score,
         timeSeconds,
         par: par || undefined,
+        branchCount,
+        moveDescriptions,
         klondikeState,
         pyramidState,
         klondikeHistory,
@@ -233,6 +268,8 @@ export const App: React.FC = () => {
     score,
     timeSeconds,
     par,
+    branchCount,
+    moveDescriptions,
     isWon,
     deckLoading,
     gameMode,
@@ -258,6 +295,8 @@ export const App: React.FC = () => {
           score,
           timeSeconds,
           par: par || undefined,
+          branchCount,
+          moveDescriptions,
           klondikeState,
           pyramidState,
           klondikeHistory,
@@ -279,6 +318,8 @@ export const App: React.FC = () => {
     score,
     timeSeconds,
     par,
+    branchCount,
+    moveDescriptions,
     klondikeState,
     pyramidState,
     klondikeHistory,
@@ -288,10 +329,12 @@ export const App: React.FC = () => {
   ]);
 
   // Handle Klondike state changes
-  const handleKlondikeChange = (nextState: KlondikeState, _desc: string) => {
+  const handleKlondikeChange = (nextState: KlondikeState, desc: string) => {
     if (!klondikeState) return;
     setKlondikeHistory((prev) => [...prev, cloneKlondikeState(klondikeState)]);
     setKlondikeFuture([]);
+    setMoveDescriptions((prev) => [...prev, desc || 'Moved cards']);
+    setFutureMoveDescriptions([]);
     setKlondikeState(nextState);
     setMoves((m) => m + 1);
     setScore((s) => s + 10);
@@ -299,10 +342,12 @@ export const App: React.FC = () => {
   };
 
   // Handle Pyramid state changes
-  const handlePyramidChange = (nextState: PyramidState, _desc: string) => {
+  const handlePyramidChange = (nextState: PyramidState, desc: string) => {
     if (!pyramidState) return;
     setPyramidHistory((prev) => [...prev, clonePyramidState(pyramidState)]);
     setPyramidFuture([]);
+    setMoveDescriptions((prev) => [...prev, desc || 'Matched cards']);
+    setFutureMoveDescriptions([]);
     setPyramidState(nextState);
     setMoves((m) => m + 1);
     setScore((s) => s + 15);
@@ -317,16 +362,26 @@ export const App: React.FC = () => {
       const previous = klondikeHistory[klondikeHistory.length - 1];
       setKlondikeFuture((f) => [cloneKlondikeState(klondikeState), ...f]);
       setKlondikeHistory((h) => h.slice(0, -1));
+      if (moveDescriptions.length > 1) {
+        const lastDesc = moveDescriptions[moveDescriptions.length - 1];
+        setFutureMoveDescriptions((f) => [lastDesc, ...f]);
+        setMoveDescriptions((m) => m.slice(0, -1));
+      }
       setKlondikeState(previous);
-      setMoves((m) => m + 1);
+      setMoves((m) => Math.max(0, m - 1));
     } else {
       if (pyramidHistory.length === 0 || !pyramidState) return;
       sound.playCardSlide();
       const previous = pyramidHistory[pyramidHistory.length - 1];
       setPyramidFuture((f) => [clonePyramidState(pyramidState), ...f]);
       setPyramidHistory((h) => h.slice(0, -1));
+      if (moveDescriptions.length > 1) {
+        const lastDesc = moveDescriptions[moveDescriptions.length - 1];
+        setFutureMoveDescriptions((f) => [lastDesc, ...f]);
+        setMoveDescriptions((m) => m.slice(0, -1));
+      }
       setPyramidState(previous);
-      setMoves((m) => m + 1);
+      setMoves((m) => Math.max(0, m - 1));
     }
   };
 
@@ -338,6 +393,11 @@ export const App: React.FC = () => {
       const next = klondikeFuture[0];
       setKlondikeHistory((h) => [...h, cloneKlondikeState(klondikeState)]);
       setKlondikeFuture((f) => f.slice(1));
+      if (futureMoveDescriptions.length > 0) {
+        const nextDesc = futureMoveDescriptions[0];
+        setMoveDescriptions((m) => [...m, nextDesc]);
+        setFutureMoveDescriptions((f) => f.slice(1));
+      }
       setKlondikeState(next);
       setMoves((m) => m + 1);
     } else {
@@ -346,6 +406,11 @@ export const App: React.FC = () => {
       const next = pyramidFuture[0];
       setPyramidHistory((h) => [...h, clonePyramidState(pyramidState)]);
       setPyramidFuture((f) => f.slice(1));
+      if (futureMoveDescriptions.length > 0) {
+        const nextDesc = futureMoveDescriptions[0];
+        setMoveDescriptions((m) => [...m, nextDesc]);
+        setFutureMoveDescriptions((f) => f.slice(1));
+      }
       setPyramidState(next);
       setMoves((m) => m + 1);
     }
@@ -377,6 +442,9 @@ export const App: React.FC = () => {
       }
 
       sound.playErrorBump();
+      setIsDeadlocked(true);
+      setDeadlockReason('No playable moves found for the current layout.');
+      setShowDeadlockBanner(true);
     } else {
       if (!pyramidState) return;
       const hint = findPyramidHint(pyramidState);
@@ -390,8 +458,132 @@ export const App: React.FC = () => {
         }
       } else {
         sound.playErrorBump();
+        setIsDeadlocked(true);
+        setDeadlockReason('No matching pairs found for exposed pyramid cards.');
+        setShowDeadlockBanner(true);
       }
     }
+  };
+
+  // Memoized timeline steps for The Fork
+  const timelineSteps: TimelineStep[] = React.useMemo(() => {
+    if (gameMode === 'pyramid') {
+      if (!pyramidState) return [];
+      const allStates = [...pyramidHistory, pyramidState];
+      return allStates.map((st, i) => {
+        if (i === 0) {
+          return {
+            stepIndex: 0,
+            state: st,
+            description: 'Initial Deal',
+            tag: 'deal',
+            timestamp: Date.now() - (allStates.length - 1) * 3000,
+          };
+        }
+        const prev = allStates[i - 1];
+        const desc = moveDescriptions[i] || 'Matched or moved cards';
+        const { tag, insight } = tagMoveTransition(null, null, prev, st, desc);
+        return {
+          stepIndex: i,
+          state: st,
+          description: desc,
+          tag,
+          insight,
+          timestamp: Date.now() - (allStates.length - 1 - i) * 3000,
+        };
+      });
+    } else {
+      if (!klondikeState) return [];
+      const allStates = [...klondikeHistory, klondikeState];
+      return allStates.map((st, i) => {
+        if (i === 0) {
+          return {
+            stepIndex: 0,
+            state: st,
+            description: 'Initial Deal',
+            tag: 'deal',
+            timestamp: Date.now() - (allStates.length - 1) * 3000,
+          };
+        }
+        const prev = allStates[i - 1];
+        const desc = moveDescriptions[i] || 'Moved cards';
+        const { tag, insight } = tagMoveTransition(prev, st, null, null, desc);
+        return {
+          stepIndex: i,
+          state: st,
+          description: desc,
+          tag,
+          insight,
+          timestamp: Date.now() - (allStates.length - 1 - i) * 3000,
+        };
+      });
+    }
+  }, [gameMode, klondikeState, klondikeHistory, pyramidState, pyramidHistory, moveDescriptions]);
+
+  // Deadlock detection runner
+  useEffect(() => {
+    if (moves === 0 || isWon || isShuffling || deckLoading) {
+      setIsDeadlocked(false);
+      setShowDeadlockBanner(false);
+      return;
+    }
+
+    if (gameMode === 'pyramid' && pyramidState) {
+      const result = checkPyramidDeadlock(pyramidState);
+      setIsDeadlocked(result.isDeadlocked);
+      setDeadlockReason(result.reason);
+      if (result.isDeadlocked) {
+        setShowDeadlockBanner(true);
+      }
+    } else if (klondikeState) {
+      const result = checkKlondikeDeadlock(klondikeState);
+      setIsDeadlocked(result.isDeadlocked);
+      setDeadlockReason(result.reason);
+      if (result.isDeadlocked) {
+        setShowDeadlockBanner(true);
+      }
+    }
+  }, [moves, isWon, isShuffling, deckLoading, gameMode, klondikeState, pyramidState]);
+
+  // Branch execution from historical timeline step
+  const handleBranch = (stepIndex: number) => {
+    if (gameMode === 'pyramid') {
+      if (!pyramidState) return;
+      if (stepIndex >= pyramidHistory.length) {
+        setShowForkModal(false);
+        setForkPreviewIndex(null);
+        return;
+      }
+      const targetState = pyramidHistory[stepIndex];
+      const newHistory = pyramidHistory.slice(0, stepIndex);
+      setPyramidState(targetState);
+      setPyramidHistory(newHistory);
+      setPyramidFuture([]);
+    } else {
+      if (!klondikeState) return;
+      if (stepIndex >= klondikeHistory.length) {
+        setShowForkModal(false);
+        setForkPreviewIndex(null);
+        return;
+      }
+      const targetState = klondikeHistory[stepIndex];
+      const newHistory = klondikeHistory.slice(0, stepIndex);
+      setKlondikeState(targetState);
+      setKlondikeHistory(newHistory);
+      setKlondikeFuture([]);
+    }
+
+    setMoveDescriptions((prev) => prev.slice(0, stepIndex + 1));
+    setFutureMoveDescriptions([]);
+    setMoves(stepIndex);
+    const nextBranch = branchCount + 1;
+    setBranchCount(nextBranch);
+    sound.playCardSnap();
+    setShowForkModal(false);
+    setForkPreviewIndex(null);
+    setShowDeadlockBanner(false);
+    setResumeMessage(`Branched from Move ${stepIndex} • Path #${nextBranch} Active`);
+    setTimeout(() => setResumeMessage(null), 4000);
   };
 
   // Auto-Finish step execution
@@ -574,6 +766,8 @@ export const App: React.FC = () => {
         setShowDeckModal(false);
         setShowThemeModal(false);
         setShowRulesModal(false);
+        setShowForkModal(false);
+        setForkPreviewIndex(null);
         setConfirmDialog(null);
       }
     };
@@ -596,6 +790,17 @@ export const App: React.FC = () => {
     (gameMode === 'klondike-1' || gameMode === 'klondike-3')
       ? klondikeFuture.length > 0
       : pyramidFuture.length > 0;
+
+  // Active display states (considers Fork live preview)
+  const displayKlondikeState =
+    forkPreviewIndex !== null && forkPreviewIndex < klondikeHistory.length
+      ? klondikeHistory[forkPreviewIndex]
+      : klondikeState;
+
+  const displayPyramidState =
+    forkPreviewIndex !== null && forkPreviewIndex < pyramidHistory.length
+      ? pyramidHistory[forkPreviewIndex]
+      : pyramidState;
 
   if (deckLoading) {
     return (
@@ -640,6 +845,9 @@ export const App: React.FC = () => {
         canUndo={canUndo}
         canRedo={canRedo}
         canAutoFinish={eligibleForAutoFinish}
+        canFork={moves > 0}
+        branchCount={branchCount}
+        isDeadlocked={isDeadlocked}
         soundEnabled={soundEnabled}
         onSelectMode={handleRequestSelectMode}
         onNewGame={handleRequestNewGame}
@@ -647,6 +855,10 @@ export const App: React.FC = () => {
         onRedo={handleRedo}
         onHint={handleHint}
         onAutoFinish={handleAutoFinish}
+        onOpenFork={() => {
+          setShowForkModal(true);
+          setForkPreviewIndex(timelineSteps.length > 0 ? timelineSteps.length - 1 : 0);
+        }}
         onToggleSound={handleToggleSound}
         onOpenSeedModal={() => setShowSeedModal(true)}
         onOpenStatsModal={() => setShowStatsModal(true)}
@@ -657,18 +869,40 @@ export const App: React.FC = () => {
 
       {/* Game Playing Surface */}
       <main className="game-table-felt">
-        {gameMode === 'pyramid' && pyramidState ? (
+        {/* Deadlock Banner */}
+        {showDeadlockBanner && !showForkModal && (
+          <DeadlockBanner
+            reason={deadlockReason}
+            onOpenFork={() => {
+              setShowForkModal(true);
+              setForkPreviewIndex(timelineSteps.length > 0 ? timelineSteps.length - 1 : 0);
+            }}
+            onDismiss={() => setShowDeadlockBanner(false)}
+          />
+        )}
+
+        {/* Fork Timeline Floating Preview Pill */}
+        {forkPreviewIndex !== null && showForkModal && (
+          <div className="fork-preview-floating-indicator">
+            <GitFork size={14} className="gold-icon" />
+            <span>
+              Previewing Move <strong>{forkPreviewIndex}</strong> of {Math.max(0, timelineSteps.length - 1)}
+            </span>
+          </div>
+        )}
+
+        {gameMode === 'pyramid' && displayPyramidState ? (
           <PyramidBoard
-            state={pyramidState}
+            state={displayPyramidState}
             deck={deck}
-            hintCardId={hintCardId}
+            hintCardId={forkPreviewIndex !== null ? null : hintCardId}
             onStateChange={handlePyramidChange}
           />
-        ) : klondikeState ? (
+        ) : displayKlondikeState ? (
           <KlondikeBoard
-            state={klondikeState}
+            state={displayKlondikeState}
             deck={deck}
-            hintCardId={hintCardId}
+            hintCardId={forkPreviewIndex !== null ? null : hintCardId}
             onStateChange={handleKlondikeChange}
           />
         ) : null}
@@ -734,6 +968,20 @@ export const App: React.FC = () => {
       {showRulesModal && (
         <RulesModal onClose={() => setShowRulesModal(false)} />
       )}
+
+      {/* The Fork Timeline Modal */}
+      <ForkModal
+        isOpen={showForkModal}
+        timeline={timelineSteps}
+        previewIndex={forkPreviewIndex ?? (timelineSteps.length > 0 ? timelineSteps.length - 1 : 0)}
+        branchCount={branchCount}
+        onSelectPreviewIndex={(idx) => setForkPreviewIndex(idx)}
+        onBranch={handleBranch}
+        onClose={() => {
+          setShowForkModal(false);
+          setForkPreviewIndex(null);
+        }}
+      />
 
       {confirmDialog && (
         <ConfirmModal

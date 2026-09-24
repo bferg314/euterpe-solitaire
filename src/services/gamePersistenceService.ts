@@ -22,6 +22,8 @@ export interface SavedGameSession {
   klondikeFuture: KlondikeState[];
   pyramidHistory: PyramidState[];
   pyramidFuture: PyramidState[];
+  branchCount?: number;
+  moveDescriptions?: string[];
   savedAt: number;
 }
 

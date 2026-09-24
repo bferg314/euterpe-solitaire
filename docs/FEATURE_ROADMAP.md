@@ -24,9 +24,10 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 ## 2. The "Next Step" Value
 *Capturing the player's psychological momentum immediately after victory or defeat.*
 
-### 2.1 The Fork (Branching Undo from Deadlock)
+### 2.1 The Fork (Branching Undo from Deadlock) `[Implemented]`
 * **Description:** When a game hits a dead end or defeat, players can click "Fork Game" to view a scrubbable timeline slider of their moves, pinpointing where hidden cards were missed or bad choices were made, and branch off a new attempt from that exact mid-game point.
 * **Value Proposition:** Channels defeat into an intriguing puzzle-solving exercise ("Where did I go wrong?") rather than a rage-quit, preserving session length and engagement.
+* **Status:** Implemented (Scrubbable move timeline slider, live historical board layout preview, automated decision tagging & insights, Deadlock detection banner, branch count badge tracking, and branch persistence).
 
 ### 2.2 The Parlor Challenge Link (1-Click Ghost Seed)
 * **Description:** Upon completing a hand, a single click generates a clean, readable link (e.g., `euterpe.cards/#EAS-66961&par=48`) that copies a personalized challenge card displaying the user’s score, moves, and time as the target "Par."

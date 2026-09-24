@@ -13,6 +13,7 @@ import {
   Hash,
   FolderOpen,
   PlusCircle,
+  GitFork,
 } from 'lucide-react';
 
 interface HeaderBarProps {
@@ -26,6 +27,9 @@ interface HeaderBarProps {
   canUndo: boolean;
   canRedo: boolean;
   canAutoFinish: boolean;
+  canFork?: boolean;
+  branchCount?: number;
+  isDeadlocked?: boolean;
   soundEnabled: boolean;
   onSelectMode: (mode: GameMode) => void;
   onNewGame: () => void;
@@ -33,6 +37,7 @@ interface HeaderBarProps {
   onRedo: () => void;
   onHint: () => void;
   onAutoFinish: () => void;
+  onOpenFork: () => void;
   onToggleSound: () => void;
   onOpenSeedModal: () => void;
   onOpenStatsModal: () => void;
@@ -52,6 +57,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   canUndo,
   canRedo,
   canAutoFinish,
+  canFork = true,
+  branchCount = 0,
+  isDeadlocked = false,
   soundEnabled,
   onSelectMode,
   onNewGame,
@@ -59,6 +67,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onRedo,
   onHint,
   onAutoFinish,
+  onOpenFork,
   onToggleSound,
   onOpenSeedModal,
   onOpenStatsModal,
@@ -192,6 +201,20 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         <button className="icon-btn" onClick={onHint} title="Show Hint (H)">
           <Lightbulb size={16} />
+        </button>
+
+        <button
+          className={`icon-btn btn-fork ${branchCount > 0 ? 'branch-active' : ''} ${isDeadlocked ? 'deadlock-glow' : ''}`}
+          onClick={onOpenFork}
+          disabled={!canFork}
+          title={
+            branchCount > 0
+              ? `The Fork (Branch #${branchCount}) - Scrub timeline & branch`
+              : 'The Fork - Scrub move timeline & branch off a new attempt'
+          }
+        >
+          <GitFork size={16} />
+          {branchCount > 0 && <span className="header-branch-badge">{branchCount}</span>}
         </button>
 
         <div className="btn-divider" />
