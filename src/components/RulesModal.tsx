@@ -1,0 +1,106 @@
+import React, { useState } from 'react';
+import { HelpCircle, X, CheckCircle2 } from 'lucide-react';
+
+interface RulesModalProps {
+  onClose: () => void;
+}
+
+export const RulesModal: React.FC<RulesModalProps> = ({ onClose }) => {
+  const [activeTab, setActiveTab] = useState<'klondike' | 'pyramid'>('klondike');
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card rules-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-header-title">
+            <HelpCircle size={20} className="gold-icon" />
+            <h3>Rules & Guide</h3>
+          </div>
+          <button className="modal-close-btn" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="rules-tabs">
+          <button
+            className={`rules-tab-btn ${activeTab === 'klondike' ? 'active' : ''}`}
+            onClick={() => setActiveTab('klondike')}
+          >
+            Klondike Solitaire
+          </button>
+          <button
+            className={`rules-tab-btn ${activeTab === 'pyramid' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pyramid')}
+          >
+            Pyramid Solitaire
+          </button>
+        </div>
+
+        <div className="rules-content-body">
+          {activeTab === 'klondike' ? (
+            <div className="rules-section">
+              <h4>Objective</h4>
+              <p>
+                Transfer all 52 playing cards onto the 4 Foundation piles at the top right, sorted by suit in ascending order from <strong>Ace</strong> up to <strong>King</strong>.
+              </p>
+
+              <h4>Tableau Rules</h4>
+              <ul>
+                <li>Cards on the 7 columns must be built in <strong>descending sequence with alternating colors</strong> (e.g., Red Queen on Black King, Black 7 on Red 8).</li>
+                <li>You can move stacks of face-up cards together to another column if the top moving card legally connects to the target.</li>
+                <li>Only a <strong>King</strong> (or a sequence headed by a King) may be placed into an empty tableau space.</li>
+              </ul>
+
+              <h4>Stock & Waste</h4>
+              <ul>
+                <li>Click the Stock pile to draw cards into the Waste pile (1 card in Turn 1 mode, 3 cards in Turn 3 mode).</li>
+                <li>When the Stock is exhausted, click the empty slot to recycle the Waste back into the Stock.</li>
+              </ul>
+
+              <h4>Shortcuts & Controls</h4>
+              <p>
+                <strong>Single Click / Tap:</strong> Automatically glides the card to the Foundation or best Tableau slot.
+                <br />
+                <strong>Drag & Drop:</strong> Drag single cards or cascaded stacks anywhere on the board.
+              </p>
+            </div>
+          ) : (
+            <div className="rules-section">
+              <h4>Objective</h4>
+              <p>
+                Dismantle the 28-card pyramid completely by matching exposed cards in pairs that add up to <strong>13</strong>.
+              </p>
+
+              <h4>Card Values & Pairs</h4>
+              <div className="pyramid-values-table">
+                <div className="pair-pill"><strong>King (13)</strong> = Cleared alone with 1 click!</div>
+                <div className="pair-pill"><strong>Queen (12) + Ace (1)</strong> = 13</div>
+                <div className="pair-pill"><strong>Jack (11) + 2</strong> = 13</div>
+                <div className="pair-pill"><strong>10 + 3</strong> = 13</div>
+                <div className="pair-pill"><strong>9 + 4</strong> = 13</div>
+                <div className="pair-pill"><strong>8 + 5</strong> = 13</div>
+                <div className="pair-pill"><strong>7 + 6</strong> = 13</div>
+              </div>
+
+              <h4>Exposure Rules</h4>
+              <p>
+                A card in the pyramid is exposed and available for matching only when both cards directly below it have been removed. Bottom-row cards are exposed immediately at the start of the game.
+              </p>
+
+              <h4>Stock & Waste</h4>
+              <p>
+                Click the Stock pile to flip a reserve card to the Waste pile. The exposed Waste card can be paired with any available pyramid card!
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-actions-row">
+          <button className="primary-action-btn" onClick={onClose}>
+            <CheckCircle2 size={16} /> Got It
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
