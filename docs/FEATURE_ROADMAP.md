@@ -45,9 +45,10 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 * **Description:** Implements authentic Las Vegas Solitaire wagering ($52 buy-in per deck, $5 return for every card brought to the foundations, strict 1- or 3-pass stock limits) tied to a persistent, virtual parlor bankroll ledger.
 * **Value Proposition:** Injects high-stakes risk management and strategic tension into every move for seasoned players who find standard Klondike scoring trivial.
 
-### 3.2 Theoretical Par & Efficiency Rating
+### 3.2 Theoretical Par & Efficiency Rating `[Implemented]`
 * **Description:** Integrates a deterministic solver algorithm in the background to calculate the absolute minimum moves required to solve that specific seed, ranking the player's victory against theoretical perfection (e.g., "Albatross: Par - 4 moves").
 * **Value Proposition:** Recontextualizes Solitaire from an exercise in chance into a precision chess-like puzzle, driving deep replayability on challenging seeds.
+* **Status:** Implemented (Deterministic Klondike & Pyramid solvers, live Header PAR counter, luxury victory badge, stats efficiency dashboard & lifetime match tier tracking).
 
 ### 3.3 Sensory Soundscape Mixer
 * **Description:** A dedicated parlor acoustics panel enabling users to blend bespoke ambient layers (soft vinyl crackle, gentle rain against windowpanes, fireplace embers, tactile card weights) with custom card acoustic profiles (heavy linen snap vs. silk glide).

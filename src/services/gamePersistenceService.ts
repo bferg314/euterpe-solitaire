@@ -15,6 +15,7 @@ export interface SavedGameSession {
   moves: number;
   score: number;
   timeSeconds: number;
+  par?: number;
   klondikeState: KlondikeState | null;
   pyramidState: PyramidState | null;
   klondikeHistory: KlondikeState[];

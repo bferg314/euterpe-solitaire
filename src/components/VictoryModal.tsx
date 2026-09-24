@@ -3,6 +3,8 @@ import confetti from 'canvas-confetti';
 import type { GameMode, DifficultyLevel } from '../types/solitaire';
 import { Trophy, Clock, CheckCircle2, RotateCcw, Play, Share2 } from 'lucide-react';
 import { sound } from '../services/audioService';
+import { EfficiencyBadge } from './EfficiencyBadge';
+import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
 
 interface VictoryModalProps {
   gameMode: GameMode;
@@ -11,6 +13,7 @@ interface VictoryModalProps {
   moves: number;
   timeSeconds: number;
   score: number;
+  par?: number;
   onPlayAgain: () => void;
   onReplaySeed: () => void;
   onClose: () => void;
@@ -23,6 +26,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   moves,
   timeSeconds,
   score,
+  par = 0,
   onPlayAgain,
   onReplaySeed,
   onClose,
@@ -55,10 +59,13 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
     return `${mins}m ${s.toString().padStart(2, '0')}s`;
   };
 
+  const eff = par > 0 ? calculateEfficiency(moves, par) : null;
+
   const copyShareText = () => {
-    const text = `I won ${gameMode.toUpperCase()} (${difficulty.toUpperCase()}) in ${moves} moves and ${formatTime(timeSeconds)}! Seed: ${seed}`;
+    const parInfo = eff ? ` (${formatParDelta(eff.delta)} ${eff.label}, ${eff.efficiencyPct}% Efficiency)` : '';
+    const text = `♠ Euterpe Solitaire: Solved ${gameMode.toUpperCase()} [${difficulty.toUpperCase()}] in ${moves} moves${parInfo}! Seed: ${seed}`;
     navigator.clipboard.writeText(text);
-    alert('Victory score copied to clipboard!');
+    alert('Victory score and efficiency rating copied to clipboard!');
   };
 
   return (
@@ -72,6 +79,17 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         <p className="victory-subtitle">
           Superb strategy! You have mastered the cards on {difficulty.toUpperCase()} tier.
         </p>
+
+        {/* Theoretical Par Efficiency Card */}
+        {par > 0 && (
+          <div className="victory-par-showcase">
+            <EfficiencyBadge
+              actualMoves={moves}
+              par={par}
+              showDescription={true}
+            />
+          </div>
+        )}
 
         <div className="victory-stats-grid">
           <div className="victory-stat-item">
@@ -101,11 +119,15 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             <Play size={16} />
             <span>Next Deal</span>
           </button>
-          <button className="secondary-action-btn" onClick={onReplaySeed}>
+          <button
+            className="secondary-action-btn replay-par-btn"
+            onClick={onReplaySeed}
+            title="Replay this seed to chase an even better Par efficiency"
+          >
             <RotateCcw size={16} />
-            <span>Replay Seed</span>
+            <span>Chase Better Par</span>
           </button>
-          <button className="secondary-action-btn" onClick={copyShareText} title="Share results">
+          <button className="secondary-action-btn" onClick={copyShareText} title="Share results with efficiency rating">
             <Share2 size={16} />
           </button>
         </div>

@@ -1093,15 +1093,21 @@ body, html {
 
 .stats-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 620px) {
+  .stats-dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .stat-card {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
-  padding: 12px;
+  padding: 12px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1131,8 +1137,9 @@ body, html {
 }
 
 .stat-subtext {
-  font-size: 11px;
+  font-size: 10.5px;
   color: #94a3b8;
+  white-space: nowrap;
 }
 
 .daily-wins-callout {
@@ -1925,4 +1932,242 @@ body, html {
     transform: translate(-50%, 0);
   }
 }
+
+/* ==========================================================================
+   Theoretical Par & Efficiency Rating System
+   ========================================================================== */
+
+/* Header Par Counter */
+.counter-item.par-item {
+  position: relative;
+  padding: 0 4px;
+}
+
+.counter-item.par-item.under-par .counter-val {
+  color: #34d399;
+  text-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+}
+
+.counter-item.par-item.over-par .counter-val {
+  color: #f59e0b;
+}
+
+/* Victory Par Showcase & Action Button */
+.victory-par-showcase {
+  margin: 4px 0 10px 0;
+  width: 100%;
+}
+
+.replay-par-btn {
+  background: rgba(212, 175, 55, 0.15) !important;
+  border-color: rgba(212, 175, 55, 0.45) !important;
+  color: #fef08a !important;
+}
+
+.replay-par-btn:hover {
+  background: rgba(212, 175, 55, 0.28) !important;
+  border-color: rgba(212, 175, 55, 0.7) !important;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.25);
+}
+
+/* Full Efficiency Showcase Card */
+.efficiency-card {
+  position: relative;
+  border-radius: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(145deg, rgba(18, 24, 21, 0.85) 0%, rgba(10, 14, 12, 0.95) 100%);
+  border: 1px solid var(--tier-color, rgba(212, 175, 55, 0.35));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 18px var(--tier-glow, rgba(212, 175, 55, 0.15));
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.efficiency-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--tier-color, #d4af37) 50%, transparent 100%);
+}
+
+.efficiency-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.efficiency-emblem-ring {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--tier-color, #d4af37);
+  box-shadow: 0 0 16px var(--tier-glow, rgba(212, 175, 55, 0.3));
+  flex-shrink: 0;
+}
+
+.efficiency-titles {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+.efficiency-tier-name {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.efficiency-delta-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.efficiency-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.45;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.efficiency-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.efficiency-metric-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.efficiency-metric-col .metric-label {
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.efficiency-metric-col .metric-val {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.efficiency-pct-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.efficiency-pct-bar-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.efficiency-pct-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Tier Delta Badges */
+.delta-albatross {
+  background: rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(147, 197, 253, 0.35);
+}
+
+.delta-eagle {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(110, 231, 183, 0.35);
+}
+
+.delta-birdie {
+  background: rgba(212, 175, 55, 0.2);
+  color: #fde047;
+  border: 1px solid rgba(253, 224, 71, 0.35);
+}
+
+.delta-par {
+  background: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+  border: 1px solid rgba(226, 232, 240, 0.3);
+}
+
+.delta-bogey {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(252, 211, 77, 0.3);
+}
+
+.delta-double-bogey {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(252, 165, 165, 0.3);
+}
+
+/* Compact Badge for Tables & History */
+.efficiency-badge-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--tier-color, rgba(255, 255, 255, 0.15));
+  background: rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+
+.efficiency-badge-compact .compact-emblem {
+  font-size: 12px;
+}
+
+.efficiency-badge-compact .compact-tier {
+  color: var(--tier-color, #e2e8f0);
+}
+
+.efficiency-badge-compact .compact-delta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.stat-tier-cell {
+  display: flex;
+  align-items: center;
+}
+
 

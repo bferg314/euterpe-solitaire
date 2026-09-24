@@ -22,6 +22,7 @@ interface HeaderBarProps {
   moves: number;
   timeSeconds: number;
   score: number;
+  par?: number;
   canUndo: boolean;
   canRedo: boolean;
   canAutoFinish: boolean;
@@ -47,6 +48,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   moves,
   timeSeconds,
   score,
+  par = 0,
   canUndo,
   canRedo,
   canAutoFinish,
@@ -130,6 +132,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <span className="counter-label">MOVES</span>
             <span className="counter-val">{moves}</span>
           </div>
+          {par > 0 && (
+            <div
+              className={`counter-item par-item ${moves <= par ? 'under-par' : 'over-par'}`}
+              title={`Theoretical Par for this seed: ${par} moves (${moves <= par ? `${par - moves} under Par` : `${moves - par} over Par`})`}
+            >
+              <span className="counter-label">PAR</span>
+              <span className="counter-val">{par}</span>
+            </div>
+          )}
           <div className="counter-item" title="Elapsed time">
             <span className="counter-label">TIME</span>
             <span className="counter-val">{formatTime(timeSeconds)}</span>

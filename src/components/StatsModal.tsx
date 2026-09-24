@@ -20,6 +20,7 @@ import {
   Trash2,
   Award,
 } from 'lucide-react';
+import { EfficiencyBadge } from './EfficiencyBadge';
 
 interface StatsModalProps {
   currentMode: GameMode;
@@ -141,6 +142,16 @@ export const StatsModal: React.FC<StatsModalProps> = ({ currentMode, onReplaySee
           </div>
 
           <div className="stat-card">
+            <span className="stat-label">PAR EFFICIENCY</span>
+            <span className="stat-number">
+              {stats.averageEfficiency ? `${stats.averageEfficiency}%` : '100%'}
+            </span>
+            <span className="stat-subtext" title="Eagle, Birdie, and Par solves">
+              🦅 {stats.eaglesCount || 0} · 🐦 {stats.birdiesCount || 0} · ⛳ {stats.parsCount || 0}
+            </span>
+          </div>
+
+          <div className="stat-card">
             <span className="stat-label">WIN STREAK</span>
             <span className="stat-number">
               <Flame size={20} className="flame-icon" /> {stats.currentStreak}
@@ -189,6 +200,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ currentMode, onReplaySee
                     <th>Mode</th>
                     <th>Tier</th>
                     <th>Result</th>
+                    <th>Rating</th>
                     <th>Moves</th>
                     <th>Time</th>
                     <th>Seed</th>
@@ -207,6 +219,13 @@ export const StatsModal: React.FC<StatsModalProps> = ({ currentMode, onReplaySee
                         <span className={`result-tag ${entry.won ? 'won' : 'lost'}`}>
                           {entry.won ? 'Won' : 'Abandoned'}
                         </span>
+                      </td>
+                      <td>
+                        {entry.won && entry.par ? (
+                          <EfficiencyBadge actualMoves={entry.moves} par={entry.par} compact={true} />
+                        ) : (
+                          <span className="par-na">--</span>
+                        )}
                       </td>
                       <td>{entry.moves}</td>
                       <td>{formatTime(entry.timeSeconds)}</td>

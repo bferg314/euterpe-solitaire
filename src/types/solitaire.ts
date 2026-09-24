@@ -50,6 +50,11 @@ export interface GameStats {
   totalTimeSeconds: number;
   fewestMoves: number | null;
   highScore: number;
+  averageEfficiency?: number;
+  eaglesCount?: number;
+  birdiesCount?: number;
+  parsCount?: number;
+  bogeysCount?: number;
 }
 
 export interface MatchHistoryEntry {
@@ -62,6 +67,8 @@ export interface MatchHistoryEntry {
   moves: number;
   timeSeconds: number;
   score: number;
+  par?: number;
+  ratingTier?: string;
 }
 
 export type ThemeId = 'midnight-velvet' | 'obsidian-royale' | 'casino-crimson' | 'nordic-frost' | 'cyber-silk';

@@ -8,6 +8,7 @@ import { createSeedForDifficulty } from './services/rngService';
 import { recordGameResult } from './services/statsService';
 import { applyTheme, getSavedTheme, saveTheme } from './services/themeService';
 import { saveActiveGame, loadActiveGame, clearActiveGame } from './services/gamePersistenceService';
+import { getOrComputePar } from './services/parService';
 import { sound } from './services/audioService';
 
 import { HeaderBar } from './components/HeaderBar';
@@ -57,6 +58,7 @@ export const App: React.FC = () => {
   const [moves, setMoves] = useState(0);
   const [score, setScore] = useState(0);
   const [timeSeconds, setTimeSeconds] = useState(0);
+  const [par, setPar] = useState<number>(0);
   const [isWon, setIsWon] = useState(false);
   const [hintCardId, setHintCardId] = useState<string | null>(null);
 
@@ -93,18 +95,22 @@ export const App: React.FC = () => {
       setHintCardId(null);
       clearActiveGame();
 
+      let computedPar = 0;
       if (mode === 'klondike-1' || mode === 'klondike-3') {
         const drawCount = mode === 'klondike-3' ? 3 : 1;
         const initial = dealKlondike(activeDeck, seedToUse, drawCount, diff);
         setKlondikeState(initial);
         setKlondikeHistory([]);
         setKlondikeFuture([]);
+        computedPar = getOrComputePar(mode, diff, seedToUse, initial, null);
       } else {
         const initial = dealPyramid(activeDeck, seedToUse, diff);
         setPyramidState(initial);
         setPyramidHistory([]);
         setPyramidFuture([]);
+        computedPar = getOrComputePar(mode, diff, seedToUse, null, initial);
       }
+      setPar(computedPar);
     },
     []
   );
@@ -136,9 +142,11 @@ export const App: React.FC = () => {
           setKlondikeFuture(saved.klondikeFuture || []);
           setPyramidHistory(saved.pyramidHistory || []);
           setPyramidFuture(saved.pyramidFuture || []);
+          const restoredPar = saved.par || getOrComputePar(saved.gameMode, saved.difficulty, saved.seed, saved.klondikeState, saved.pyramidState);
+          setPar(restoredPar);
           setIsWon(false);
           setShowVictoryModal(false);
-          setResumeMessage(`Resumed game in progress (${saved.moves} moves)`);
+          setResumeMessage(`Resumed game in progress (${saved.moves} moves • Par ${restoredPar})`);
           setTimeout(() => setResumeMessage(null), 4000);
         } else {
           startNewGameWithDeck(loaded, gameMode, difficulty, seed);
@@ -184,10 +192,10 @@ export const App: React.FC = () => {
         setIsWon(true);
         setShowVictoryModal(true);
         clearActiveGame();
-        recordGameResult(gameMode, difficulty, true, timeSeconds, moves, score + 500, seed);
+        recordGameResult(gameMode, difficulty, true, timeSeconds, moves, score + 500, seed, par);
       }
     }
-  }, [klondikeState, isWon, gameMode, difficulty, timeSeconds, moves, score, seed]);
+  }, [klondikeState, isWon, gameMode, difficulty, timeSeconds, moves, score, seed, par]);
 
   // Victory check for Pyramid
   useEffect(() => {
@@ -196,10 +204,10 @@ export const App: React.FC = () => {
         setIsWon(true);
         setShowVictoryModal(true);
         clearActiveGame();
-        recordGameResult(gameMode, difficulty, true, timeSeconds, moves, score + 500, seed);
+        recordGameResult(gameMode, difficulty, true, timeSeconds, moves, score + 500, seed, par);
       }
     }
-  }, [pyramidState, isWon, gameMode, difficulty, timeSeconds, moves, score, seed]);
+  }, [pyramidState, isWon, gameMode, difficulty, timeSeconds, moves, score, seed, par]);
 
   // Auto-save active game session to localStorage
   useEffect(() => {
@@ -211,6 +219,7 @@ export const App: React.FC = () => {
         moves,
         score,
         timeSeconds,
+        par: par || undefined,
         klondikeState,
         pyramidState,
         klondikeHistory,
@@ -223,6 +232,7 @@ export const App: React.FC = () => {
     moves,
     score,
     timeSeconds,
+    par,
     isWon,
     deckLoading,
     gameMode,
@@ -247,6 +257,7 @@ export const App: React.FC = () => {
           moves,
           score,
           timeSeconds,
+          par: par || undefined,
           klondikeState,
           pyramidState,
           klondikeHistory,
@@ -267,6 +278,7 @@ export const App: React.FC = () => {
     seed,
     score,
     timeSeconds,
+    par,
     klondikeState,
     pyramidState,
     klondikeHistory,
@@ -622,6 +634,7 @@ export const App: React.FC = () => {
         difficulty={difficulty}
         seed={seed}
         moves={moves}
+        par={par}
         timeSeconds={timeSeconds}
         score={score}
         canUndo={canUndo}
@@ -676,6 +689,7 @@ export const App: React.FC = () => {
           difficulty={difficulty}
           seed={seed}
           moves={moves}
+          par={par}
           timeSeconds={timeSeconds}
           score={score}
           onPlayAgain={() => startNewDeal(gameMode, difficulty)}

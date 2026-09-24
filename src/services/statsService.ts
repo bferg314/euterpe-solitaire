@@ -1,4 +1,5 @@
 import type { GameMode, DifficultyLevel, GameStats, MatchHistoryEntry } from '../types/solitaire';
+import { calculateEfficiency } from '../utils/efficiencyRating';
 
 const STATS_STORAGE_KEY = 'euterpe_solitaire_stats_v1';
 const HISTORY_STORAGE_KEY = 'euterpe_solitaire_history_v1';
@@ -21,6 +22,11 @@ const DEFAULT_STATS: GameStats = {
   totalTimeSeconds: 0,
   fewestMoves: null,
   highScore: 0,
+  averageEfficiency: 100,
+  eaglesCount: 0,
+  birdiesCount: 0,
+  parsCount: 0,
+  bogeysCount: 0,
 };
 
 export function getStats(mode: GameMode, difficulty: DifficultyLevel): GameStats {
@@ -42,7 +48,8 @@ export function recordGameResult(
   timeSeconds: number,
   moves: number,
   score: number,
-  seed: string
+  seed: string,
+  par?: number
 ): void {
   try {
     const raw = localStorage.getItem(STATS_STORAGE_KEY);
@@ -52,6 +59,8 @@ export function recordGameResult(
 
     current.gamesPlayed += 1;
     current.totalTimeSeconds += timeSeconds;
+
+    let ratingTier: string | undefined;
 
     if (won) {
       current.gamesWon += 1;
@@ -73,6 +82,24 @@ export function recordGameResult(
       if (difficulty === 'daily') {
         recordDailyWin(seed);
       }
+
+      // Record Par efficiency metrics
+      if (par && par > 0) {
+        const eff = calculateEfficiency(moves, par);
+        ratingTier = eff.tier;
+        if (eff.tier === 'albatross' || eff.tier === 'eagle') {
+          current.eaglesCount = (current.eaglesCount || 0) + 1;
+        } else if (eff.tier === 'birdie') {
+          current.birdiesCount = (current.birdiesCount || 0) + 1;
+        } else if (eff.tier === 'par') {
+          current.parsCount = (current.parsCount || 0) + 1;
+        } else {
+          current.bogeysCount = (current.bogeysCount || 0) + 1;
+        }
+
+        const prevTotalEff = (current.averageEfficiency || 100) * (current.gamesWon - 1);
+        current.averageEfficiency = Math.round((prevTotalEff + eff.efficiencyPct) / current.gamesWon);
+      }
     } else {
       current.currentStreak = 0;
     }
@@ -91,6 +118,8 @@ export function recordGameResult(
       moves,
       timeSeconds,
       score,
+      par,
+      ratingTier,
     });
   } catch (e) {
     console.error('Failed to save stats:', e);
