@@ -1,6 +1,7 @@
 export interface ParlorComfortSettings {
   ambientVacuumEnabled: boolean;
   smartTapEnabled: boolean;
+  keyboardHintSeen: boolean;
 }
 
 const SETTINGS_STORAGE_KEY = 'euterpe_solitaire_comfort_settings_v1';
@@ -8,6 +9,7 @@ const SETTINGS_STORAGE_KEY = 'euterpe_solitaire_comfort_settings_v1';
 const DEFAULT_SETTINGS: ParlorComfortSettings = {
   ambientVacuumEnabled: true,
   smartTapEnabled: true,
+  keyboardHintSeen: false,
 };
 
 export function getSavedSettings(): ParlorComfortSettings {
@@ -24,6 +26,10 @@ export function getSavedSettings(): ParlorComfortSettings {
         typeof parsed.smartTapEnabled === 'boolean'
           ? parsed.smartTapEnabled
           : DEFAULT_SETTINGS.smartTapEnabled,
+      keyboardHintSeen:
+        typeof parsed.keyboardHintSeen === 'boolean'
+          ? parsed.keyboardHintSeen
+          : DEFAULT_SETTINGS.keyboardHintSeen,
     };
   } catch {
     return DEFAULT_SETTINGS;

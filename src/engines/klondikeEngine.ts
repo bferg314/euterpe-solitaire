@@ -262,3 +262,72 @@ export function cloneKlondikeState(state: KlondikeState): KlondikeState {
     drawCount: state.drawCount,
   };
 }
+
+export type KlondikeMoveSource =
+  | { pile: 'tableau'; col: number; index: number }
+  | { pile: 'waste' }
+  | { pile: 'foundation'; index: number };
+
+export type KlondikeMoveTarget =
+  | { pile: 'tableau'; col: number }
+  | { pile: 'foundation'; index: number };
+
+/**
+ * Returns the cards a move would lift from `source` (the tableau run from `index` down,
+ * or the top waste/foundation card), or an empty array if nothing movable is there.
+ */
+export function getMovingCards(state: KlondikeState, source: KlondikeMoveSource): SolitaireCard[] {
+  if (source.pile === 'tableau') {
+    const col = state.tableau[source.col];
+    if (!col || source.index < 0 || source.index >= col.length) return [];
+    const run = col.slice(source.index);
+    return run.every((c) => c.faceUp) ? run : [];
+  }
+  const pile = source.pile === 'waste' ? state.waste : state.foundations[source.index];
+  return pile && pile.length > 0 ? [pile[pile.length - 1]] : [];
+}
+
+/**
+ * Applies a single Klondike move (drag/drop, smart tap or keyboard): validates it,
+ * moves the cards and flips the newly exposed tableau card. Returns the next state
+ * and the moved cards, or null when the move is illegal or goes nowhere.
+ */
+export function applyKlondikeMove(
+  state: KlondikeState,
+  source: KlondikeMoveSource,
+  target: KlondikeMoveTarget
+): { next: KlondikeState; cards: SolitaireCard[] } | null {
+  const cards = getMovingCards(state, source);
+  if (cards.length === 0) return null;
+
+  if (target.pile === 'tableau') {
+    if (source.pile === 'tableau' && source.col === target.col) return null;
+    const column = state.tableau[target.col];
+    if (!column || !canDropOnTableau(cards[0], column)) return null;
+  } else {
+    if (source.pile === 'foundation' && source.index === target.index) return null;
+    const pile = state.foundations[target.index];
+    if (!pile || cards.length !== 1 || !canDropOnFoundation(cards[0], pile)) return null;
+  }
+
+  const next = cloneKlondikeState(state);
+  let moved: SolitaireCard[];
+  if (source.pile === 'tableau') {
+    moved = next.tableau[source.col].splice(source.index);
+    const srcCol = next.tableau[source.col];
+    if (srcCol.length > 0 && !srcCol[srcCol.length - 1].faceUp) {
+      srcCol[srcCol.length - 1].faceUp = true;
+    }
+  } else if (source.pile === 'waste') {
+    moved = [next.waste.pop()!];
+  } else {
+    moved = [next.foundations[source.index].pop()!];
+  }
+
+  if (target.pile === 'tableau') {
+    next.tableau[target.col].push(...moved);
+  } else {
+    next.foundations[target.index].push(...moved);
+  }
+  return { next, cards: moved };
+}
