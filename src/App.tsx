@@ -374,7 +374,9 @@ export const App: React.FC = () => {
   // Handle Pyramid state changes
   const handlePyramidChange = (nextState: PyramidState, desc: string) => {
     if (!pyramidState) return;
-    setPyramidHistory((prev) => [...prev, clonePyramidState(pyramidState)]);
+    // Snapshots drop the half-made selection so undo lands on a clean board.
+    const snapshot = { ...clonePyramidState(pyramidState), selectedCard: null };
+    setPyramidHistory((prev) => [...prev, snapshot]);
     setPyramidFuture([]);
     setMoveDescriptions((prev) => [...prev, desc || 'Matched cards']);
     setFutureMoveDescriptions([]);
@@ -382,6 +384,12 @@ export const App: React.FC = () => {
     setMoves((m) => m + 1);
     setScore((s) => s + 15);
     setHintCardId(null);
+  };
+
+  // Selecting or deselecting a Pyramid card isn't a move: no history, moves or score.
+  const handlePyramidSelectionChange = (nextState: PyramidState) => {
+    if (forkPreviewIndex !== null) return;
+    setPyramidState(nextState);
   };
 
   // Undo Handler
@@ -951,6 +959,7 @@ export const App: React.FC = () => {
             keyboardEnabled={boardKeyboardEnabled}
             onKeyboardActivate={handleKeyboardActivate}
             onStateChange={handlePyramidChange}
+            onSelectionChange={handlePyramidSelectionChange}
           />
         ) : displayKlondikeState ? (
           <KlondikeBoard
