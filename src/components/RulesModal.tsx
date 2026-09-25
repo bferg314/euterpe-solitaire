@@ -8,11 +8,27 @@ interface RulesModalProps {
   onClose: () => void;
 }
 
+// Each entry is a key, a chord like 'Ctrl+Z' (drawn as Ctrl + Z), or a plain-text joiner ('or', '–').
+const JOINERS = new Set(['or', '–']);
+
 const Keys: React.FC<{ keys: string[] }> = ({ keys }) => (
   <span className="kbd-combo">
-    {keys.map((k, i) => (
-      <kbd key={i}>{k}</kbd>
-    ))}
+    {keys.map((k, i) =>
+      JOINERS.has(k) ? (
+        <span key={i} className="kbd-joiner">{k}</span>
+      ) : k.length > 1 && k.includes('+') ? (
+        <span key={i} className="kbd-chord">
+          {k.split('+').map((part, j) => (
+            <React.Fragment key={j}>
+              {j > 0 && <span className="kbd-joiner">+</span>}
+              <kbd>{part}</kbd>
+            </React.Fragment>
+          ))}
+        </span>
+      ) : (
+        <kbd key={i}>{k}</kbd>
+      )
+    )}
   </span>
 );
 
@@ -32,16 +48,16 @@ const KLONDIKE_KEYS: [string[], string][] = [
 const PYRAMID_KEYS: [string[], string][] = [
   [['←', '→'], 'Previous or next card in the row'],
   [['↑', '↓'], 'Nearest card in the row above or below; down from the bottom row reaches stock and waste'],
-  [['Space', 'Enter'], 'Select a card, pair it to 13, or clear a King'],
+  [['Space', 'or', 'Enter'], 'Select a card, pair it to 13, or clear a King'],
   [['D'], 'Draw from the stock'],
   [['W'], 'Select the waste card'],
   [['Esc'], 'Clear the selection'],
 ];
 
 const GLOBAL_KEYS: [string[], string][] = [
+  [['Ctrl+Z', 'or', 'U'], 'Undo'],
+  [['Ctrl+Y'], 'Redo'],
   [['H'], 'Show a hint'],
-  [['Ctrl', 'Z'], 'Undo'],
-  [['Ctrl', 'Y'], 'Redo'],
   [['?'], 'Open this sheet'],
 ];
 
@@ -159,12 +175,12 @@ export const RulesModal: React.FC<RulesModalProps> = ({ initialTab = 'klondike',
                 Press <kbd>Tab</kbd> to reach the board, or just start with an arrow key. A gold cursor shows where you are,
                 and it hides again as soon as you use the mouse.
               </p>
+              <h4>Everywhere</h4>
+              <KeyTable rows={GLOBAL_KEYS} />
               <h4>Klondike</h4>
               <KeyTable rows={KLONDIKE_KEYS} />
               <h4>Pyramid</h4>
               <KeyTable rows={PYRAMID_KEYS} />
-              <h4>Everywhere</h4>
-              <KeyTable rows={GLOBAL_KEYS} />
             </div>
           )}
         </div>
