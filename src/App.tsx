@@ -20,7 +20,7 @@ import { StatsModal } from './components/StatsModal';
 import { SeedModal } from './components/SeedModal';
 import { DeckManagerModal } from './components/DeckManagerModal';
 import { ThemeModal } from './components/ThemeModal';
-import { RulesModal } from './components/RulesModal';
+import { RulesModal, type RulesTab } from './components/RulesModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ForkModal } from './components/ForkModal';
 import { DeadlockBanner } from './components/DeadlockBanner';
@@ -87,6 +87,17 @@ export const App: React.FC = () => {
     });
   };
 
+  // First time a board is played by keyboard, point at the shortcut sheet once.
+  const handleKeyboardActivate = () => {
+    if (comfortSettings.keyboardHintSeen) return;
+    const next = { ...comfortSettings, keyboardHintSeen: true };
+    setComfortSettings(next);
+    saveSettings(next);
+    const hint = 'Keyboard mode: arrow keys to move, Space to pick up or drop, ? for all shortcuts';
+    setResumeMessage(hint);
+    setTimeout(() => setResumeMessage((current) => (current === hint ? null : current)), 6000);
+  };
+
   // Gameplay Metrics
   const [moves, setMoves] = useState(0);
   const [score, setScore] = useState(0);
@@ -104,6 +115,7 @@ export const App: React.FC = () => {
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [rulesTab, setRulesTab] = useState<RulesTab>('klondike');
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogConfig | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
 
@@ -777,6 +789,9 @@ export const App: React.FC = () => {
         handleRedo();
       } else if (e.key.toLowerCase() === 'h') {
         handleHint();
+      } else if (e.key === '?') {
+        setRulesTab('keyboard');
+        setShowRulesModal(true);
       } else if (e.key === 'Escape') {
         setShowVictoryModal(false);
         setShowStatsModal(false);
@@ -793,6 +808,20 @@ export const App: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   });
+
+  // Board keys pause whenever something else owns the screen.
+  const boardKeyboardEnabled =
+    !isShuffling &&
+    !isAutoFinishing &&
+    !showVictoryModal &&
+    !showStatsModal &&
+    !showSeedModal &&
+    !showDeckModal &&
+    !showThemeModal &&
+    !showRulesModal &&
+    !showForkModal &&
+    forkPreviewIndex === null &&
+    !confirmDialog;
 
   const eligibleForAutoFinish =
     (gameMode === 'klondike-1' || gameMode === 'klondike-3') &&
@@ -884,7 +913,10 @@ export const App: React.FC = () => {
         onOpenStatsModal={() => setShowStatsModal(true)}
         onOpenThemeModal={() => setShowThemeModal(true)}
         onOpenDeckModal={() => setShowDeckModal(true)}
-        onOpenRulesModal={() => setShowRulesModal(true)}
+        onOpenRulesModal={() => {
+          setRulesTab(gameMode === 'pyramid' ? 'pyramid' : 'klondike');
+          setShowRulesModal(true);
+        }}
       />
 
       {/* Game Playing Surface */}
@@ -916,6 +948,8 @@ export const App: React.FC = () => {
             state={displayPyramidState}
             deck={deck}
             hintCardId={forkPreviewIndex !== null ? null : hintCardId}
+            keyboardEnabled={boardKeyboardEnabled}
+            onKeyboardActivate={handleKeyboardActivate}
             onStateChange={handlePyramidChange}
           />
         ) : displayKlondikeState ? (
@@ -925,6 +959,8 @@ export const App: React.FC = () => {
             hintCardId={forkPreviewIndex !== null ? null : hintCardId}
             ambientVacuumEnabled={comfortSettings.ambientVacuumEnabled}
             smartTapEnabled={comfortSettings.smartTapEnabled}
+            keyboardEnabled={boardKeyboardEnabled}
+            onKeyboardActivate={handleKeyboardActivate}
             onStateChange={handleKlondikeChange}
           />
         ) : null}
@@ -988,7 +1024,7 @@ export const App: React.FC = () => {
       )}
 
       {showRulesModal && (
-        <RulesModal onClose={() => setShowRulesModal(false)} />
+        <RulesModal initialTab={rulesTab} onClose={() => setShowRulesModal(false)} />
       )}
 
       {/* The Fork Timeline Modal */}

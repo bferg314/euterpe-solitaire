@@ -21,6 +21,11 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 * **Description:** In 3-card Klondike, allows mouse-wheel scrolling or a continuous horizontal swipe across the stock pile to rapidly cycle through draw rotations, automatically braking when a playable card hits the waste.
 * **Value Proposition:** Removes finger strain and the frustration of repetitive clicking when cycling through a 24-card stock pile multiple times looking for a specific rank.
 
+### 1.4 Keyboard Mode `[Implemented]`
+* **Description:** Every game can be played without a mouse. A gold roving cursor moves between piles with the arrow keys; in Klondike, `Space` picks up and drops cards and `Enter` plays a card like a click; in Pyramid, `Space`/`Enter` select and pair. `?` opens the full shortcut sheet.
+* **Value Proposition:** Fast, precise play for keyboard-first players and full access for screen-reader users, without changing anything for mouse players (the cursor hides the moment the mouse moves).
+* **Status:** Implemented (shared `applyKlondikeMove` engine function with unit tests, `useBoardKeyboard` hook, live-region announcements, Rules → Keyboard tab). See `docs/KEYBOARD_MODE_PLAN.md`.
+
 ---
 
 ## 2. The "Next Step" Value

@@ -8,6 +8,12 @@ interface CardStackProps {
   deck: LoadedDeck | null;
   columnIndex: number;
   hintCardId?: string | null;
+  /** Keyboard cursor: the card a pick-up starts from, -1 for an empty column, null when elsewhere. */
+  cursorIndex?: number | null;
+  /** The cursor marks a drop target (cards are held) rather than a pick-up. */
+  cursorIsTarget?: boolean;
+  /** Cards from this index down are held by the keyboard. */
+  heldFromIndex?: number | null;
   onCardClick?: (card: SolitaireCard, colIdx: number, cardIdx: number) => void;
   onCardDoubleClick?: (card: SolitaireCard, colIdx: number, cardIdx: number) => void;
   onDragStart?: (card: SolitaireCard, colIdx: number, cardIdx: number, e: React.DragEvent) => void;
@@ -15,11 +21,25 @@ interface CardStackProps {
   onDragOver?: (e: React.DragEvent) => void;
 }
 
+// Vertical offset of each card: tighter for face-down, wider for face-up
+function cardOffsets(cards: SolitaireCard[]): number[] {
+  const offsets: number[] = [];
+  let top = 0;
+  for (const card of cards) {
+    offsets.push(top);
+    top += card.faceUp ? 30 : 16;
+  }
+  return offsets;
+}
+
 export const CardStack: React.FC<CardStackProps> = ({
   cards,
   deck,
   columnIndex,
   hintCardId,
+  cursorIndex = null,
+  cursorIsTarget = false,
+  heldFromIndex = null,
   onCardClick,
   onCardDoubleClick,
   onDragStart,
@@ -37,6 +57,11 @@ export const CardStack: React.FC<CardStackProps> = ({
     if (onDrop) onDrop(columnIndex, e);
   };
 
+  const offsets = cardOffsets(cards);
+  // The ring wraps the run from the cursor card to the bottom of the column.
+  const ringTop = cursorIndex !== null && cursorIndex >= 0 ? offsets[cursorIndex] : 0;
+  const ringSpan = cards.length > 0 && cursorIndex !== null && cursorIndex >= 0 ? offsets[cards.length - 1] - ringTop : 0;
+
   return (
     <div
       id={`tableau-col-${columnIndex}`}
@@ -50,21 +75,16 @@ export const CardStack: React.FC<CardStackProps> = ({
       </div>
 
       {cards.map((card, idx) => {
-        // Calculate vertical offset: tighter for face-down, wider for face-up
-        let topOffset = 0;
-        for (let i = 0; i < idx; i++) {
-          topOffset += cards[i].faceUp ? 30 : 16;
-        }
-
         const isHint = hintCardId === card.id;
+        const isHeld = heldFromIndex !== null && idx >= heldFromIndex;
 
         return (
           <div
             key={card.instanceId}
             id={`card-${card.instanceId}`}
-            className="stacked-card-wrapper"
+            className={`stacked-card-wrapper ${isHeld ? 'kb-held' : ''}`}
             style={{
-              top: `${topOffset}px`,
+              top: `${offsets[idx]}px`,
               zIndex: idx + 1,
             }}
           >
@@ -80,6 +100,14 @@ export const CardStack: React.FC<CardStackProps> = ({
           </div>
         );
       })}
+
+      {cursorIndex !== null && (
+        <div
+          className={`kb-column-ring ${cursorIsTarget ? 'target' : ''}`}
+          style={{ top: `${ringTop}px`, height: `calc(${ringSpan}px + var(--card-h))` }}
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 };
