@@ -47,7 +47,7 @@ The cursor can rest on covered cards so the player can read them, but selecting 
 ### Shared
 
 - `?` opens a keyboard shortcut sheet, which also becomes a section in `RulesModal`.
-- `H`, `Ctrl+Z` and `Ctrl+Y` stay as they are. After undo/redo, move the cursor back onto the nearest valid spot if its pile has shrunk.
+- `H`, `Ctrl+Z` and `Ctrl+Y` stay as they are, and `U` also undoes. After undo/redo, move the cursor back onto the nearest valid spot if its pile has shrunk.
 
 ## Implementation phases
 

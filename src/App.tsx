@@ -38,6 +38,9 @@ interface ConfirmDialogConfig {
   onConfirm: () => void;
 }
 
+// Every Pyramid move (a draw, a pair or a King) scores the same, so undo/redo can refund it exactly.
+const PYRAMID_MOVE_POINTS = 15;
+
 export const App: React.FC = () => {
   // Deck & Theme
   const [deck, setDeck] = useState<LoadedDeck | null>(null);
@@ -382,7 +385,7 @@ export const App: React.FC = () => {
     setFutureMoveDescriptions([]);
     setPyramidState(nextState);
     setMoves((m) => m + 1);
-    setScore((s) => s + 15);
+    setScore((s) => s + PYRAMID_MOVE_POINTS);
     setHintCardId(null);
   };
 
@@ -420,6 +423,7 @@ export const App: React.FC = () => {
       }
       setPyramidState(previous);
       setMoves((m) => Math.max(0, m - 1));
+      setScore((s) => Math.max(0, s - PYRAMID_MOVE_POINTS));
     }
   };
 
@@ -451,6 +455,7 @@ export const App: React.FC = () => {
       }
       setPyramidState(next);
       setMoves((m) => m + 1);
+      setScore((s) => s + PYRAMID_MOVE_POINTS);
     }
   };
 
@@ -795,6 +800,9 @@ export const App: React.FC = () => {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         handleRedo();
+      } else if (e.key.toLowerCase() === 'u' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // A bare letter shouldn't undo behind an open modal or the Fork preview.
+        if (boardKeyboardEnabled) handleUndo();
       } else if (e.key.toLowerCase() === 'h') {
         handleHint();
       } else if (e.key === '?') {
