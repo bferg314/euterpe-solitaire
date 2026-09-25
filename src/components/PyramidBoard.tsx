@@ -20,6 +20,8 @@ interface PyramidBoardProps {
   keyboardEnabled?: boolean;
   onKeyboardActivate?: () => void;
   onStateChange: (newState: PyramidState, description: string) => void;
+  /** Selection changes are not moves: no history, move count or score. */
+  onSelectionChange: (newState: PyramidState) => void;
 }
 
 type PyramidCursor = { zone: 'pyramid'; row: number; col: number } | { zone: 'stock' } | { zone: 'waste' };
@@ -76,6 +78,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
   keyboardEnabled = true,
   onKeyboardActivate,
   onStateChange,
+  onSelectionChange,
 }) => {
   const { pyramid, stock, waste, selectedCard } = state;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -133,7 +136,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
       sound.playCardSlide();
       const next = clonePyramidState(state);
       next.selectedCard = { source, pos, card };
-      onStateChange(next, `Selected ${card.label}`);
+      onSelectionChange(next);
       return;
     }
 
@@ -144,7 +147,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
       sound.playCardSlide();
       const next = clonePyramidState(state);
       next.selectedCard = null;
-      onStateChange(next, 'Deselected card');
+      onSelectionChange(next);
       return;
     }
 
@@ -179,7 +182,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
       const next = clonePyramidState(state);
       // Switch selection to this card
       next.selectedCard = { source, pos, card };
-      onStateChange(next, `Selected ${card.label}`);
+      onSelectionChange(next);
     }
   };
 
@@ -302,7 +305,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
         if (!selectedCard) return false;
         const next = clonePyramidState(state);
         next.selectedCard = null;
-        onStateChange(next, 'Deselected card');
+        onSelectionChange(next);
         setAnnouncement('Deselected');
         return true;
       }
