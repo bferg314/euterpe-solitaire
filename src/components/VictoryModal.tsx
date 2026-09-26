@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import type { GameMode, DifficultyLevel } from '../types/solitaire';
-import { Trophy, Clock, CheckCircle2, RotateCcw, Play, Share2, GraduationCap } from 'lucide-react';
+import { Trophy, Clock, CheckCircle2, RotateCcw, Play, Share2, GraduationCap, Flag } from 'lucide-react';
 import { sound } from '../services/audioService';
 import { EfficiencyBadge } from './EfficiencyBadge';
 import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
@@ -16,6 +16,8 @@ interface VictoryModalProps {
   par?: number;
   /** Length of the best known winning line, for the Ace tier. */
   ace?: number | null;
+  /** False when Par is an estimate (shown as ~N). */
+  parExact?: boolean;
   onPlayAgain: () => void;
   onReplaySeed: () => void;
   /** Opens the Trainer on this deal (Pyramid only for now). */
@@ -32,6 +34,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   score,
   par = 0,
   ace = null,
+  parExact = true,
   onPlayAgain,
   onReplaySeed,
   onWatchTrainer,
@@ -86,7 +89,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           Superb strategy! You have mastered the cards on {difficulty.toUpperCase()} tier.
         </p>
 
-        {/* Theoretical Par Efficiency Card */}
+        {/* Par rating */}
         {par > 0 && (
           <div className="victory-par-showcase">
             <EfficiencyBadge
@@ -100,6 +103,20 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         )}
 
         <div className="victory-stats-grid">
+          <div className={`victory-stat-item ${par > 0 ? '' : 'wide'}`}>
+            <span className="v-label">MOVES</span>
+            <span className="v-val">
+              <CheckCircle2 size={16} /> {moves}
+            </span>
+          </div>
+          {par > 0 && (
+            <div className="victory-stat-item">
+              <span className="v-label">{parExact ? 'PAR' : 'PAR (EST.)'}</span>
+              <span className="v-val">
+                <Flag size={16} /> {parExact ? par : `~${par}`}
+              </span>
+            </div>
+          )}
           <div className="victory-stat-item">
             <span className="v-label">TIME</span>
             <span className="v-val">
@@ -107,16 +124,10 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             </span>
           </div>
           <div className="victory-stat-item">
-            <span className="v-label">MOVES</span>
-            <span className="v-val">
-              <CheckCircle2 size={16} /> {moves}
-            </span>
-          </div>
-          <div className="victory-stat-item">
             <span className="v-label">SCORE</span>
             <span className="v-val trophy-accent">{score}</span>
           </div>
-          <div className="victory-stat-item">
+          <div className="victory-stat-item wide">
             <span className="v-label">SEED</span>
             <span className="v-val seed-code-val">{seed}</span>
           </div>

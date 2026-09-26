@@ -125,6 +125,12 @@ export function calculateEfficiency(
   return { tier, delta, efficiencyPct, ...TIERS[tier] };
 }
 
+/** A Par delta in words: "16 over Par", "4 under Par", "On Par". */
+export function describeParDelta(delta: number): string {
+  if (delta === 0) return 'On Par';
+  return `${Math.abs(delta)} ${delta > 0 ? 'over' : 'under'} Par`;
+}
+
 /**
  * Formats a Par Delta as a golf-style string, e.g. -2, E, +4
  */

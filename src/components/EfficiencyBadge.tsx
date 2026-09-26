@@ -1,5 +1,5 @@
 import React from 'react';
-import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
+import { calculateEfficiency, describeParDelta, formatParDelta } from '../utils/efficiencyRating';
 import type { GameMode } from '../types/solitaire';
 
 interface EfficiencyBadgeProps {
@@ -65,32 +65,12 @@ export const EfficiencyBadge: React.FC<EfficiencyBadgeProps> = ({
           <span className="card-emblem-icon">{result.emblem}</span>
         </div>
         <div className="efficiency-title-block">
-          <div className="efficiency-super-title">THEORETICAL PAR EFFICIENCY</div>
+          <div className="efficiency-super-title">PAR RATING</div>
           <h3 className="efficiency-tier-name" style={{ color: result.accentColor }}>
             {result.label}
           </h3>
           <span className="efficiency-score-pill" style={{ color: result.accentColor }}>
-            {formattedDelta} ({result.efficiencyPct}% Par Efficiency)
-          </span>
-        </div>
-      </div>
-
-      <div className="efficiency-metrics-grid">
-        <div className="eff-metric-col">
-          <span className="eff-label">PLAYER MOVES</span>
-          <span className="eff-value">{actualMoves}</span>
-        </div>
-        <div className="eff-metric-col">
-          <span className="eff-label">THEORETICAL PAR</span>
-          <span className="eff-value">{par}</span>
-        </div>
-        <div className="eff-metric-col">
-          <span className="eff-label">PAR DELTA</span>
-          <span
-            className="eff-value"
-            style={{ color: result.delta <= 0 ? '#4ade80' : '#f87171' }}
-          >
-            {formattedDelta}
+            {describeParDelta(result.delta)} · {result.efficiencyPct}% efficiency
           </span>
         </div>
       </div>
