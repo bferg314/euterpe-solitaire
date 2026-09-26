@@ -8,9 +8,12 @@ import {
   doCardsSumTo13,
   clonePyramidState,
   countPyramidCardsCleared,
+  applyPyramidMove,
+  describePyramidMove,
 } from '../engines/pyramidEngine';
 import { sound } from '../services/audioService';
 import { useBoardKeyboard } from '../hooks/useBoardKeyboard';
+import type { PyramidCardRef, PyramidSolverMove } from '../engines/solvers/types';
 import { RefreshCw } from 'lucide-react';
 
 interface PyramidBoardProps {
@@ -88,24 +91,11 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
 
   // Handle stock click (draw 1 card or recycle waste)
   const handleStockClick = () => {
+    const move: PyramidSolverMove = stock.length > 0 ? { type: 'draw' } : { type: 'recycle' };
+    const next = applyPyramidMove(state, move);
+    if (!next) return;
     sound.playCardSlide();
-    const next = clonePyramidState(state);
-    next.selectedCard = null;
-
-    if (next.stock.length === 0) {
-      if (next.waste.length === 0) return;
-      next.stock = next.waste.reverse().map((c) => ({ ...c, faceUp: false }));
-      next.waste = [];
-      onStateChange(next, 'Recycled waste pile to stock');
-      return;
-    }
-
-    const drawn = next.stock.pop();
-    if (drawn) {
-      drawn.faceUp = true;
-      next.waste.push(drawn);
-    }
-    onStateChange(next, 'Drew card from stock');
+    onStateChange(next, describePyramidMove(state, move));
   };
 
   // Process pairing or King removal
@@ -114,20 +104,15 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
     source: 'pyramid' | 'waste',
     pos?: { row: number; col: number }
   ) => {
+    const ref: PyramidCardRef = source === 'pyramid' && pos ? { from: 'pyramid', ...pos } : { from: 'waste' };
+
     // 1. King single-click removal (value = 13)
     if (isKing(card)) {
+      const move: PyramidSolverMove = { type: 'king', card: ref };
+      const next = applyPyramidMove(state, move);
+      if (!next) return;
       sound.playCardSnap();
-      const next = clonePyramidState(state);
-      next.selectedCard = null;
-
-      if (source === 'pyramid' && pos) {
-        next.pyramid[pos.row][pos.col] = null;
-      } else if (source === 'waste') {
-        next.waste.pop();
-      }
-
-      next.clearedPairs += 1;
-      onStateChange(next, `Cleared King (${card.label})`);
+      onStateChange(next, describePyramidMove(state, move));
       return;
     }
 
@@ -152,37 +137,20 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
     }
 
     // 4. Check if the two cards sum to 13
-    if (doCardsSumTo13(selectedCard.card, card)) {
+    const selectedRef: PyramidCardRef =
+      selectedCard.source === 'pyramid' && selectedCard.pos ? { from: 'pyramid', ...selectedCard.pos } : { from: 'waste' };
+    const move: PyramidSolverMove = { type: 'pair', a: selectedRef, b: ref };
+    const next = doCardsSumTo13(selectedCard.card, card) ? applyPyramidMove(state, move) : null;
+    if (next) {
       sound.playCardSnap();
-      const next = clonePyramidState(state);
-      next.selectedCard = null;
-
-      // Remove first selected card
-      if (selectedCard.source === 'pyramid' && selectedCard.pos) {
-        next.pyramid[selectedCard.pos.row][selectedCard.pos.col] = null;
-      } else if (selectedCard.source === 'waste') {
-        // Find by instanceId in waste
-        const idx = next.waste.findIndex((c) => c.instanceId === selectedCard.card.instanceId);
-        if (idx !== -1) next.waste.splice(idx, 1);
-      }
-
-      // Remove second clicked card
-      if (source === 'pyramid' && pos) {
-        next.pyramid[pos.row][pos.col] = null;
-      } else if (source === 'waste') {
-        const idx = next.waste.findIndex((c) => c.instanceId === card.instanceId);
-        if (idx !== -1) next.waste.splice(idx, 1);
-      }
-
-      next.clearedPairs += 1;
-      onStateChange(next, `Matched pair: ${selectedCard.card.label} + ${card.label} = 13`);
+      onStateChange(next, describePyramidMove(state, move));
     } else {
       // Invalid pair
       sound.playErrorBump();
-      const next = clonePyramidState(state);
+      const switched = clonePyramidState(state);
       // Switch selection to this card
-      next.selectedCard = { source, pos, card };
-      onSelectionChange(next);
+      switched.selectedCard = { source, pos, card };
+      onSelectionChange(switched);
     }
   };
 

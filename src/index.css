@@ -2101,7 +2101,7 @@ body, html {
 }
 
 /* Tier Delta Badges */
-.delta-albatross {
+.delta-ace {
   background: rgba(96, 165, 250, 0.2);
   color: #93c5fd;
   border: 1px solid rgba(147, 197, 253, 0.35);
@@ -2129,12 +2129,6 @@ body, html {
   background: rgba(245, 158, 11, 0.2);
   color: #fcd34d;
   border: 1px solid rgba(252, 211, 77, 0.3);
-}
-
-.delta-double-bogey {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-  border: 1px solid rgba(252, 165, 165, 0.3);
 }
 
 /* Compact Badge for Tables & History */

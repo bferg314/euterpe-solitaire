@@ -54,13 +54,18 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 * **Value Proposition:** Injects high-stakes risk management and strategic tension into every move for seasoned players who find standard Klondike scoring trivial.
 
 ### 3.2 Theoretical Par & Efficiency Rating `[Implemented]`
-* **Description:** Integrates a deterministic solver algorithm in the background to calculate the absolute minimum moves required to solve that specific seed, ranking the player's victory against theoretical perfection (e.g., "Albatross: Par - 4 moves").
+* **Description:** A real solver works out the shortest winning line for each deal in a background worker (the "Ace" line), and Par is set a few moves above it. Wins are rated on the Ace / Eagle / Birdie / Par / Bogey ladder.
 * **Value Proposition:** Recontextualizes Solitaire from an exercise in chance into a precision chess-like puzzle, driving deep replayability on challenging seeds.
-* **Status:** Implemented (Deterministic Klondike & Pyramid solvers, live Header PAR counter, luxury victory badge, stats efficiency dashboard & lifetime match tier tracking).
+* **Status:** Implemented for Pyramid (exact A* solver: Par = Ace line + max(3, 8%); unwinnable deals fall back to an estimated `~Par`). Klondike still uses an estimated `~Par` until its solver lands (see 3.4). Live header Par, victory badge, stats Ace count and match-history tiers.
 
 ### 3.3 Sensory Soundscape Mixer
 * **Description:** A dedicated parlor acoustics panel enabling users to blend bespoke ambient layers (soft vinyl crackle, gentle rain against windowpanes, fireplace embers, tactile card weights) with custom card acoustic profiles (heavy linen snap vs. silk glide).
 * **Value Proposition:** Reinforces Euterpe’s distinct position as a premium sensory refuge, transforming the game into an everyday focus and study companion.
+
+### 3.4 Solitaire Trainer `[In Progress]`
+* **Description:** Watch a bot win a deal along a known winning line at five skill levels: Bogey, Par, Birdie, Eagle and Ace. Weaker bots take realistic detours from the Ace line, and each detour is explained with the moves it cost.
+* **Value Proposition:** Shows what efficient play looks like on a real deal, and exactly where sloppy play loses moves.
+* **Status:** Phase 1 done (exact Pyramid solver in a worker, solver-based Par, new rating ladder). Next: the Pyramid trainer view, then the Klondike solver and trainer.
 
 ---
 

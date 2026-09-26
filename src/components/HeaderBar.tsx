@@ -24,6 +24,10 @@ interface HeaderBarProps {
   timeSeconds: number;
   score: number;
   par?: number;
+  /** False when Par is a heuristic estimate (shown as ~N). */
+  parExact?: boolean;
+  /** The solver is still working out Par for this deal. */
+  parPending?: boolean;
   canUndo: boolean;
   canRedo: boolean;
   canAutoFinish: boolean;
@@ -56,6 +60,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   timeSeconds,
   score,
   par = 0,
+  parExact = true,
+  parPending = false,
   canUndo,
   canRedo,
   canAutoFinish,
@@ -145,14 +151,21 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <span className="counter-label">MOVES</span>
             <span className="counter-val">{moves}</span>
           </div>
-          {par > 0 && (
-            <div
-              className={`counter-item par-item ${moves <= par ? 'under-par' : 'over-par'}`}
-              title={`Theoretical Par for this seed: ${par} moves (${moves <= par ? `${par - moves} under Par` : `${moves - par} over Par`})`}
-            >
+          {parPending ? (
+            <div className="counter-item par-item" title="Working out Par for this deal…">
               <span className="counter-label">PAR</span>
-              <span className="counter-val">{par}</span>
+              <span className="counter-val">…</span>
             </div>
+          ) : (
+            par > 0 && (
+              <div
+                className={`counter-item par-item ${moves <= par ? 'under-par' : 'over-par'}`}
+                title={`${parExact ? 'Par for this deal' : gameMode === 'pyramid' ? 'Estimated Par (no winning line found)' : 'Estimated Par'}: ${par} moves (${moves <= par ? `${par - moves} under Par` : `${moves - par} over Par`})`}
+              >
+                <span className="counter-label">PAR</span>
+                <span className="counter-val">{parExact ? par : `~${par}`}</span>
+              </div>
+            )
           )}
           <div className="counter-item" title="Elapsed time">
             <span className="counter-label">TIME</span>

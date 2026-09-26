@@ -146,8 +146,8 @@ export const StatsModal: React.FC<StatsModalProps> = ({ currentMode, onReplaySee
             <span className="stat-number">
               {stats.averageEfficiency ? `${stats.averageEfficiency}%` : '100%'}
             </span>
-            <span className="stat-subtext" title="Eagle, Birdie, and Par solves">
-              🦅 {stats.eaglesCount || 0} · 🐦 {stats.birdiesCount || 0} · ⛳ {stats.parsCount || 0}
+            <span className="stat-subtext" title="Ace, Eagle, Birdie and Par solves">
+              ♠ {stats.acesCount || 0} · 🦅 {stats.eaglesCount || 0} · 🐦 {stats.birdiesCount || 0} · ⛳ {stats.parsCount || 0}
             </span>
           </div>
 
@@ -222,7 +222,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ currentMode, onReplaySee
                       </td>
                       <td>
                         {entry.won && entry.par ? (
-                          <EfficiencyBadge actualMoves={entry.moves} par={entry.par} compact={true} />
+                          <EfficiencyBadge actualMoves={entry.moves} par={entry.par} ace={entry.ace} compact={true} />
                         ) : (
                           <span className="par-na">--</span>
                         )}

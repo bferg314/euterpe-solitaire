@@ -23,6 +23,7 @@ const DEFAULT_STATS: GameStats = {
   fewestMoves: null,
   highScore: 0,
   averageEfficiency: 100,
+  acesCount: 0,
   eaglesCount: 0,
   birdiesCount: 0,
   parsCount: 0,
@@ -49,7 +50,8 @@ export function recordGameResult(
   moves: number,
   score: number,
   seed: string,
-  par?: number
+  par?: number,
+  ace?: number | null
 ): void {
   try {
     const raw = localStorage.getItem(STATS_STORAGE_KEY);
@@ -85,9 +87,11 @@ export function recordGameResult(
 
       // Record Par efficiency metrics
       if (par && par > 0) {
-        const eff = calculateEfficiency(moves, par);
+        const eff = calculateEfficiency(moves, par, ace);
         ratingTier = eff.tier;
-        if (eff.tier === 'albatross' || eff.tier === 'eagle') {
+        if (eff.tier === 'ace') {
+          current.acesCount = (current.acesCount || 0) + 1;
+        } else if (eff.tier === 'eagle') {
           current.eaglesCount = (current.eaglesCount || 0) + 1;
         } else if (eff.tier === 'birdie') {
           current.birdiesCount = (current.birdiesCount || 0) + 1;
@@ -119,6 +123,7 @@ export function recordGameResult(
       timeSeconds,
       score,
       par,
+      ace,
       ratingTier,
     });
   } catch (e) {

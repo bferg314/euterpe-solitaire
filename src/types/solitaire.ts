@@ -51,6 +51,7 @@ export interface GameStats {
   fewestMoves: number | null;
   highScore: number;
   averageEfficiency?: number;
+  acesCount?: number;
   eaglesCount?: number;
   birdiesCount?: number;
   parsCount?: number;
@@ -68,6 +69,7 @@ export interface MatchHistoryEntry {
   timeSeconds: number;
   score: number;
   par?: number;
+  ace?: number | null;
   ratingTier?: string;
 }
 

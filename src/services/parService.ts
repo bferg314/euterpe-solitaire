@@ -1,9 +1,12 @@
 import type { GameMode, DifficultyLevel, KlondikeState, PyramidState } from '../types/solitaire';
-import type { CachedParRecord } from '../types/par';
-import { calculateKlondikePar } from '../engines/solvers/klondikeSolver';
-import { calculatePyramidPar } from '../engines/solvers/pyramidSolver';
+import type { CachedParRecord, ParInfo } from '../types/par';
+import { estimateKlondikePar } from '../engines/solvers/klondikeSolver';
+import { estimatePyramidPar } from '../engines/solvers/pyramidSolver';
+import { parFromAce } from '../utils/efficiencyRating';
+import { solvePyramidAsync } from './solverClient';
 
-const PAR_CACHE_KEY = 'euterpe_solitaire_par_cache_v1';
+// v2: Par comes from solved lines. v1 held heuristic estimates and is ignored.
+const PAR_CACHE_KEY = 'euterpe_solitaire_par_cache_v2';
 
 interface ParDatabase {
   [seedKey: string]: CachedParRecord;
@@ -22,67 +25,70 @@ function readCache(): ParDatabase {
   }
 }
 
-function writeCache(db: ParDatabase): void {
+function writeCacheRecord(key: string, info: ParInfo): void {
   try {
+    const db = readCache();
+    db[key] = { ...info, computedAt: Date.now() };
     localStorage.setItem(PAR_CACHE_KEY, JSON.stringify(db));
   } catch (err) {
     console.warn('Failed to save Par cache to localStorage:', err);
   }
 }
 
-/**
- * Gets cached Par or deterministically computes it based on the board state
- */
-export function getOrComputePar(
+/** Par already worked out for this deal, if any. */
+export function getCachedParInfo(mode: GameMode, difficulty: DifficultyLevel, seed: string): ParInfo | null {
+  const record = readCache()[getCacheKey(mode, difficulty, seed)];
+  if (!record || typeof record.par !== 'number') return null;
+  return { par: record.par, ace: record.ace ?? null, isExact: record.isExact };
+}
+
+/** Heuristic Par for when no winning line is known. */
+export function estimateParInfo(
   mode: GameMode,
   difficulty: DifficultyLevel,
-  seed: string,
-  klondikeState?: KlondikeState | null,
-  pyramidState?: PyramidState | null
-): number {
-  const cacheKey = getCacheKey(mode, difficulty, seed);
-  const db = readCache();
-
-  if (db[cacheKey] && typeof db[cacheKey].par === 'number') {
-    return db[cacheKey].par;
-  }
-
-  let par = 82; // Fallback sensible default
-
-  if (mode === 'pyramid') {
-    if (pyramidState) {
-      par = calculatePyramidPar(pyramidState);
-    } else {
-      par = 24; // Average pyramid par
-    }
-  } else {
-    if (klondikeState) {
-      par = calculateKlondikePar(klondikeState, mode, difficulty);
-    } else {
-      par = mode === 'klondike-3' ? 96 : 84;
-    }
-  }
-
-  // Cache the computed par
-  db[cacheKey] = {
-    par,
-    isExact: true,
-    computedAt: Date.now(),
-  };
-  writeCache(db);
-
-  return par;
+  initialKlondike: KlondikeState | null,
+  initialPyramid: PyramidState | null
+): ParInfo {
+  const par =
+    mode === 'pyramid'
+      ? initialPyramid
+        ? estimatePyramidPar(initialPyramid)
+        : 24
+      : initialKlondike
+      ? estimateKlondikePar(initialKlondike, mode, difficulty)
+      : mode === 'klondike-3'
+      ? 96
+      : 84;
+  return { par, ace: null, isExact: false };
 }
 
 /**
- * Retrieves cached Par for a given seed, if available
+ * Par for a deal from its initial layout. Pyramid deals are solved exactly in the solver
+ * worker; Klondike uses the heuristic estimate until its solver lands. Results are cached,
+ * so each deal is only solved once. Resolves null if a newer request superseded this one.
  */
-export function getCachedPar(
+export async function computeParInfo(
   mode: GameMode,
   difficulty: DifficultyLevel,
-  seed: string
-): number | null {
-  const cacheKey = getCacheKey(mode, difficulty, seed);
-  const db = readCache();
-  return db[cacheKey]?.par ?? null;
+  seed: string,
+  initialKlondike: KlondikeState | null,
+  initialPyramid: PyramidState | null
+): Promise<ParInfo | null> {
+  const cached = getCachedParInfo(mode, difficulty, seed);
+  if (cached) return cached;
+
+  if (mode !== 'pyramid' || !initialPyramid) {
+    return estimateParInfo(mode, difficulty, initialKlondike, initialPyramid);
+  }
+
+  const result = await solvePyramidAsync(initialPyramid, { channel: 'par' });
+  if (!result) return null;
+
+  const info: ParInfo =
+    result.status === 'solved'
+      ? { par: parFromAce(result.moves.length), ace: result.moves.length, isExact: true }
+      : estimateParInfo(mode, difficulty, null, initialPyramid);
+  // Unwinnable and out-of-budget deals are cached too: re-solving them would give the same answer.
+  writeCacheRecord(getCacheKey(mode, difficulty, seed), info);
+  return info;
 }

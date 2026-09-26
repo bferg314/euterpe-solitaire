@@ -2,6 +2,7 @@ import type { SolitaireCard, PyramidState, DifficultyLevel } from '../types/soli
 import { SeededRNG } from '../services/rngService';
 import type { LoadedDeck } from '../services/deckLoader';
 import { createStandardPack } from '../services/deckLoader';
+import type { PyramidCardRef, PyramidSolverMove } from './solvers/types';
 
 /**
  * Checks if a card at row, col in the 7-row pyramid is exposed (not covered by row+1 cards)
@@ -192,6 +193,76 @@ export function findPyramidHint(state: PyramidState): {
   }
 
   return null;
+}
+
+/** The card a move refers to, if it's currently playable (an exposed pyramid card or the top waste card). */
+export function resolvePyramidCard(state: PyramidState, ref: PyramidCardRef): SolitaireCard | null {
+  if (ref.from === 'waste') return state.waste[state.waste.length - 1] ?? null;
+  const card = state.pyramid[ref.row]?.[ref.col] ?? null;
+  return card && isPyramidCardExposed(state.pyramid, ref.row, ref.col) ? card : null;
+}
+
+function removePyramidCard(state: PyramidState, ref: PyramidCardRef) {
+  if (ref.from === 'waste') state.waste.pop();
+  else state.pyramid[ref.row][ref.col] = null;
+}
+
+const sameRef = (a: PyramidCardRef, b: PyramidCardRef) =>
+  a.from === b.from && (a.from === 'waste' || (b.from === 'pyramid' && a.row === b.row && a.col === b.col));
+
+/**
+ * Applies one Pyramid move (from the board, a solver or a bot) and returns the next state,
+ * or null when the move isn't legal right now. Any selection is cleared.
+ */
+export function applyPyramidMove(state: PyramidState, move: PyramidSolverMove): PyramidState | null {
+  switch (move.type) {
+    case 'draw': {
+      if (state.stock.length === 0) return null;
+      return drawPyramidStock(state);
+    }
+    case 'recycle': {
+      if (state.stock.length > 0 || state.waste.length === 0) return null;
+      return drawPyramidStock(state);
+    }
+    case 'king': {
+      const card = resolvePyramidCard(state, move.card);
+      if (!card || !isKing(card)) return null;
+      const next = clonePyramidState(state);
+      next.selectedCard = null;
+      removePyramidCard(next, move.card);
+      next.clearedPairs += 1;
+      return next;
+    }
+    case 'pair': {
+      if (sameRef(move.a, move.b)) return null;
+      const a = resolvePyramidCard(state, move.a);
+      const b = resolvePyramidCard(state, move.b);
+      if (!a || !b || !doCardsSumTo13(a, b)) return null;
+      const next = clonePyramidState(state);
+      next.selectedCard = null;
+      removePyramidCard(next, move.a);
+      removePyramidCard(next, move.b);
+      next.clearedPairs += 1;
+      return next;
+    }
+  }
+}
+
+/** The move-history description the board uses for each kind of move. */
+export function describePyramidMove(state: PyramidState, move: PyramidSolverMove): string {
+  switch (move.type) {
+    case 'draw':
+      return 'Drew card from stock';
+    case 'recycle':
+      return 'Recycled waste pile to stock';
+    case 'king':
+      return `Cleared King (${resolvePyramidCard(state, move.card)?.label ?? 'K'})`;
+    case 'pair': {
+      const a = resolvePyramidCard(state, move.a);
+      const b = resolvePyramidCard(state, move.b);
+      return `Matched pair: ${a?.label} + ${b?.label} = 13`;
+    }
+  }
 }
 
 export function clonePyramidState(state: PyramidState): PyramidState {

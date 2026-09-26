@@ -1,12 +1,4 @@
-import type { GameMode, DifficultyLevel } from './solitaire';
-
-export type ParRatingTier =
-  | 'albatross'
-  | 'eagle'
-  | 'birdie'
-  | 'par'
-  | 'bogey'
-  | 'double-bogey';
+export type ParRatingTier = 'ace' | 'eagle' | 'birdie' | 'par' | 'bogey';
 
 export interface EfficiencyResult {
   tier: ParRatingTier;
@@ -19,23 +11,15 @@ export interface EfficiencyResult {
   description: string;
 }
 
-export interface CachedParRecord {
+/** Par for one deal, as shown in the header and used for ratings. */
+export interface ParInfo {
   par: number;
+  /** Length of the solver's best winning line; null when no line is known. */
+  ace: number | null;
+  /** False when Par is a heuristic estimate rather than derived from a solved line. */
   isExact: boolean;
+}
+
+export interface CachedParRecord extends ParInfo {
   computedAt: number;
-}
-
-export interface SolverWorkerRequest {
-  taskId: string;
-  gameMode: GameMode;
-  difficulty: DifficultyLevel;
-  seed: string;
-  initialStockCount: number;
-  pyramidCardValues?: number[]; // Values of pyramid cards if Pyramid
-}
-
-export interface SolverWorkerResponse {
-  taskId: string;
-  par: number;
-  isExact: boolean;
 }

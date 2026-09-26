@@ -14,6 +14,8 @@ interface VictoryModalProps {
   timeSeconds: number;
   score: number;
   par?: number;
+  /** Length of the best known winning line, for the Ace tier. */
+  ace?: number | null;
   onPlayAgain: () => void;
   onReplaySeed: () => void;
   onClose: () => void;
@@ -27,6 +29,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   timeSeconds,
   score,
   par = 0,
+  ace = null,
   onPlayAgain,
   onReplaySeed,
   onClose,
@@ -59,7 +62,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
     return `${mins}m ${s.toString().padStart(2, '0')}s`;
   };
 
-  const eff = par > 0 ? calculateEfficiency(moves, par) : null;
+  const eff = par > 0 ? calculateEfficiency(moves, par, ace) : null;
 
   const copyShareText = () => {
     const parInfo = eff ? ` (${formatParDelta(eff.delta)} ${eff.label}, ${eff.efficiencyPct}% Efficiency)` : '';
@@ -86,6 +89,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             <EfficiencyBadge
               actualMoves={moves}
               par={par}
+              ace={ace}
               showDescription={true}
             />
           </div>
