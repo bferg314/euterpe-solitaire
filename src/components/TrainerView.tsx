@@ -24,8 +24,7 @@ import {
   type TierLine,
   type TrainerTier,
 } from '../engines/trainer/lineBuilder';
-import { buildTierLinesAsync, cancelTrainerWork } from '../services/solverClient';
-import { createSeedForDifficulty } from '../services/rngService';
+import { buildTierLinesAsync, cancelTrainerWork, findWinnableDealAsync } from '../services/solverClient';
 import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
 import { PyramidBoard } from './PyramidBoard';
 
@@ -41,7 +40,6 @@ type TrainerStatus = 'loading' | 'ready' | 'unwinnable' | 'searching';
 
 const SPEEDS = [0.5, 1, 2, 4];
 const BASE_STEP_MS = 1100;
-const MAX_WINNABLE_TRIES = 12;
 
 const noop = () => {};
 
@@ -69,7 +67,6 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [searchTry, setSearchTry] = useState(0);
   const sessionRef = useRef(0);
 
   // Builds a deal's five lines in the worker; they arrive one by one, Ace first. Lines from
@@ -109,17 +106,13 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
     return cancelTrainerWork;
   }, [buildLines, deck, seed, difficulty]);
 
-  // "Find a winnable deal": try fresh seeds until the solver finds a line.
+  // "Find a winnable deal": the same search New Deal uses.
   const findWinnableDeal = async () => {
     setStatus('searching');
-    for (let attempt = 1; attempt <= MAX_WINNABLE_TRIES; attempt++) {
-      setSearchTry(attempt);
-      const summary = await startSession(createSeedForDifficulty(difficulty));
-      if (!summary || summary.status === 'solved') return; // closed, or found one
-    }
-    setStatus('unwinnable');
+    const found = await findWinnableDealAsync(deck, difficulty === 'daily' ? 'medium' : difficulty);
+    if (found) startSession(found.seed);
+    else setStatus('unwinnable');
   };
-
 
   // If the chosen level turns out to have no line on this deal, show Ace instead.
   const chosenLine = lines[tier];
@@ -239,7 +232,7 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
         ) : status === 'searching' ? (
           <div className="trainer-message">
             <Loader2 size={28} className="spin gold-icon" />
-            <p>Looking for a winnable deal (try {searchTry} of {MAX_WINNABLE_TRIES})…</p>
+            <p>Looking for a winnable deal…</p>
           </div>
         ) : status === 'unwinnable' ? (
           <div className="trainer-message">

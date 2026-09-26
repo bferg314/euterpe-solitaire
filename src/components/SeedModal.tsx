@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { DifficultyLevel } from '../types/solitaire';
+import type { DifficultyLevel, GameMode } from '../types/solitaire';
 import {
   getDailyChallengeSeed,
   createSeedForDifficulty,
@@ -10,19 +10,54 @@ import { Hash, Sparkles, Copy, Play, X, Calendar, ShieldCheck, Flame, Compass } 
 interface SeedModalProps {
   currentSeed: string;
   currentDifficulty: DifficultyLevel;
-  onApplySeedAndDifficulty: (seed: string, difficulty: DifficultyLevel) => void;
+  gameMode: GameMode;
+  winnableOnly: boolean;
+  onToggleWinnableOnly: () => void;
+  /** `seed` is null when the player chose a difficulty but no seed of their own. */
+  onApplySeedAndDifficulty: (seed: string | null, difficulty: DifficultyLevel) => void;
   onClose: () => void;
 }
+
+const TIER_CARDS = [
+  {
+    difficulty: 'easy',
+    name: 'Relaxed',
+    Icon: ShieldCheck,
+    klondike: 'High initial mobility, accessible Aces, smooth forward momentum.',
+    pyramid: 'Winnable in 55 moves or fewer: few passes through the stock.',
+  },
+  {
+    difficulty: 'medium',
+    name: 'Standard',
+    Icon: Compass,
+    klondike: 'Classic tournament random distribution requiring keen observation.',
+    pyramid: 'Winnable in 56–60 moves.',
+  },
+  {
+    difficulty: 'hard',
+    name: 'Master',
+    Icon: Flame,
+    klondike: 'Constrained initial plays; buried Aces demand multi-turn planning.',
+    pyramid: 'Winnable, but the best line takes 61+ moves: more stock passes to plan.',
+  },
+] as const satisfies readonly { difficulty: DifficultyLevel; name: string; Icon: unknown; klondike: string; pyramid: string }[];
 
 export const SeedModal: React.FC<SeedModalProps> = ({
   currentSeed,
   currentDifficulty,
+  gameMode,
+  winnableOnly,
+  onToggleWinnableOnly,
   onApplySeedAndDifficulty,
   onClose,
 }) => {
   const [inputSeed, setInputSeed] = useState(currentSeed);
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>(currentDifficulty);
   const [copied, setCopied] = useState(false);
+  // True when the seed in the box came from a tier pick or Randomize rather than the player.
+  const [seedIsGenerated, setSeedIsGenerated] = useState(false);
+  const isPyramid = gameMode === 'pyramid';
+  const pickWinnable = isPyramid && winnableOnly;
 
   const todayDailySeed = getDailyChallengeSeed();
 
@@ -32,7 +67,13 @@ export const SeedModal: React.FC<SeedModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleApply = (seedToUse: string, diffToUse: DifficultyLevel) => {
+  const handleApply = (seedToUse: string, diffToUse: DifficultyLevel, generated = false) => {
+    // A generated seed just stands for "a deal at this tier": let the winnable-deal search pick one.
+    if (generated && pickWinnable) {
+      onApplySeedAndDifficulty(null, diffToUse);
+      onClose();
+      return;
+    }
     onApplySeedAndDifficulty(seedToUse.trim() || generateRandomSeed(), diffToUse);
     onClose();
   };
@@ -40,6 +81,7 @@ export const SeedModal: React.FC<SeedModalProps> = ({
   const handleGenerateNew = () => {
     const newSeed = createSeedForDifficulty(selectedDifficulty);
     setInputSeed(newSeed);
+    setSeedIsGenerated(true);
   };
 
   return (
@@ -62,7 +104,11 @@ export const SeedModal: React.FC<SeedModalProps> = ({
               <Calendar size={14} /> TODAY'S DAILY CHALLENGE
             </div>
             <h4>{todayDailySeed}</h4>
-            <p>Every player around the world receives this exact verified solvable deal today.</p>
+            <p>
+              {isPyramid
+                ? 'Every player gets the same deal today, checked by the solver to be winnable.'
+                : 'Every player around the world receives this exact deal today.'}
+            </p>
           </div>
           <button
             className="daily-play-btn"
@@ -76,49 +122,37 @@ export const SeedModal: React.FC<SeedModalProps> = ({
         <div className="challenge-tiers-section">
           <h4>Select Challenge Tier</h4>
           <div className="tiers-grid">
-            <div
-              className={`tier-card ${selectedDifficulty === 'easy' ? 'selected' : ''}`}
-              onClick={() => {
-                setSelectedDifficulty('easy');
-                setInputSeed(createSeedForDifficulty('easy'));
-              }}
-            >
-              <div className="tier-header">
-                <ShieldCheck size={18} className="tier-icon easy" />
-                <span className="tier-name">Relaxed</span>
+            {TIER_CARDS.map(({ difficulty, name, Icon, klondike, pyramid }) => (
+              <div
+                key={difficulty}
+                className={`tier-card ${selectedDifficulty === difficulty ? 'selected' : ''}`}
+                onClick={() => {
+                  setSelectedDifficulty(difficulty);
+                  setInputSeed(createSeedForDifficulty(difficulty));
+                  setSeedIsGenerated(true);
+                }}
+              >
+                <div className="tier-header">
+                  <Icon size={18} className={`tier-icon ${difficulty}`} />
+                  <span className="tier-name">{name}</span>
+                </div>
+                <p className="tier-desc">{!isPyramid ? klondike : pickWinnable ? pyramid : 'Random deal: it may not be winnable.'}</p>
               </div>
-              <p className="tier-desc">High initial mobility, accessible Aces, smooth forward momentum.</p>
-            </div>
-
-            <div
-              className={`tier-card ${selectedDifficulty === 'medium' ? 'selected' : ''}`}
-              onClick={() => {
-                setSelectedDifficulty('medium');
-                setInputSeed(createSeedForDifficulty('medium'));
-              }}
-            >
-              <div className="tier-header">
-                <Compass size={18} className="tier-icon medium" />
-                <span className="tier-name">Standard</span>
-              </div>
-              <p className="tier-desc">Classic tournament random distribution requiring keen observation.</p>
-            </div>
-
-            <div
-              className={`tier-card ${selectedDifficulty === 'hard' ? 'selected' : ''}`}
-              onClick={() => {
-                setSelectedDifficulty('hard');
-                setInputSeed(createSeedForDifficulty('hard'));
-              }}
-            >
-              <div className="tier-header">
-                <Flame size={18} className="tier-icon hard" />
-                <span className="tier-name">Master</span>
-              </div>
-              <p className="tier-desc">Constrained initial plays; buried Aces demand multi-turn planning.</p>
-            </div>
+            ))}
           </div>
         </div>
+
+        {/* Winnable-only dealing */}
+        <label className="winnable-toggle">
+          <input type="checkbox" checked={winnableOnly} onChange={onToggleWinnableOnly} />
+          <span>
+            <strong>Winnable deals only</strong>
+            <span className="winnable-toggle-hint">
+              New Pyramid deals are checked by the solver first, and sorted into tiers by how long their best line
+              is. Klondike joins once its solver lands. Seeds you type are always dealt as-is.
+            </span>
+          </span>
+        </label>
 
         {/* Custom Seed Input */}
         <div className="custom-seed-section">
@@ -131,7 +165,10 @@ export const SeedModal: React.FC<SeedModalProps> = ({
                 className="seed-input"
                 value={inputSeed}
                 placeholder="Enter any seed (e.g. EUTERPE-99)"
-                onChange={(e) => setInputSeed(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setInputSeed(e.target.value.toUpperCase());
+                  setSeedIsGenerated(false);
+                }}
               />
             </div>
 
@@ -148,7 +185,7 @@ export const SeedModal: React.FC<SeedModalProps> = ({
         <div className="modal-actions-row">
           <button
             className="primary-action-btn"
-            onClick={() => handleApply(inputSeed, selectedDifficulty)}
+            onClick={() => handleApply(inputSeed, selectedDifficulty, seedIsGenerated)}
           >
             <Play size={16} /> Deal This Game
           </button>

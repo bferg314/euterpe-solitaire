@@ -1,7 +1,7 @@
 import type { SolitaireCard, KlondikeState, DifficultyLevel } from '../types/solitaire';
 import { SeededRNG } from '../services/rngService';
 import type { LoadedDeck } from '../services/deckLoader';
-import { createStandardPack } from '../services/deckLoader';
+import { createStandardPack } from '../services/standardPack';
 
 export interface MoveStep {
   from: 'tableau' | 'waste' | 'foundation';

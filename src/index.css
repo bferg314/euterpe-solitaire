@@ -3260,3 +3260,45 @@ kbd {
   --card-h: calc(var(--card-w) * var(--card-aspect-ratio));
   --card-radius: calc(var(--card-w) * (3.5 / 63.5));
 }
+
+/* Shown over the table while a winnable Pyramid deal is being found */
+.finding-deal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(5, 12, 9, 0.6);
+  backdrop-filter: blur(3px);
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.winnable-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-border);
+  background: rgba(15, 23, 42, 0.45);
+  cursor: pointer;
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+.winnable-toggle input {
+  margin-top: 3px;
+  accent-color: var(--color-gold);
+}
+
+.winnable-toggle-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #94a3b8;
+}

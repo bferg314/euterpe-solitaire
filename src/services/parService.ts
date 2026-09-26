@@ -41,8 +41,8 @@ export function getCachedParInfo(mode: GameMode, difficulty: DifficultyLevel, se
   if (!record || typeof record.par !== 'number') return null;
   // Par is derived from the stored Ace line, so a change to the par formula applies to cached deals too.
   const ace = record.ace ?? null;
-  if (record.isExact && ace != null) return { par: parFromAce(ace, mode), ace, isExact: true };
-  return { par: record.par, ace, isExact: record.isExact };
+  if (record.isExact && ace != null) return { par: parFromAce(ace, mode), ace, isExact: true, winnable: true };
+  return { par: record.par, ace, isExact: record.isExact, winnable: record.winnable ?? null };
 }
 
 /** Heuristic Par for when no winning line is known. */
@@ -62,7 +62,7 @@ export function estimateParInfo(
       : mode === 'klondike-3'
       ? 96
       : 84;
-  return { par, ace: null, isExact: false };
+  return { par, ace: null, isExact: false, winnable: null };
 }
 
 /**
@@ -89,9 +89,19 @@ export async function computeParInfo(
 
   const info: ParInfo =
     result.status === 'solved'
-      ? { par: parFromAce(result.moves.length, mode), ace: result.moves.length, isExact: true }
-      : estimateParInfo(mode, difficulty, null, initialPyramid);
+      ? { par: parFromAce(result.moves.length, mode), ace: result.moves.length, isExact: true, winnable: true }
+      : { ...estimateParInfo(mode, difficulty, null, initialPyramid), winnable: result.status === 'unsolvable' ? false : null };
   // Unwinnable and out-of-budget deals are cached too: re-solving them would give the same answer.
   writeCacheRecord(getCacheKey(mode, difficulty, seed), info);
   return info;
+}
+
+/** Records Par for a deal whose Ace line is already known (e.g. found by the winnable-deal search). */
+export function rememberSolvedPar(mode: GameMode, difficulty: DifficultyLevel, seed: string, ace: number): void {
+  writeCacheRecord(getCacheKey(mode, difficulty, seed), {
+    par: parFromAce(ace, mode),
+    ace,
+    isExact: true,
+    winnable: true,
+  });
 }

@@ -26,6 +26,11 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 * **Value Proposition:** Fast, precise play for keyboard-first players and full access for screen-reader users, without changing anything for mouse players (the cursor hides the moment the mouse moves).
 * **Status:** Implemented (shared `applyKlondikeMove` engine function with unit tests, `useBoardKeyboard` hook, live-region announcements, Rules → Keyboard tab). See `docs/KEYBOARD_MODE_PLAN.md`.
 
+### 1.5 Winnable Deals Only `[Implemented for Pyramid]`
+* **Description:** New deals are checked by the solver before they're dealt, so every random deal can be won. Difficulty comes from the deal itself (the length of its best line), the Daily Challenge walks from the day's seed to the first winnable deal so it's the same for everyone, and a seed you type yourself is dealt as-is with a heads-up if it can't be won.
+* **Value Proposition:** Nobody wants to spend forty moves on a deal that was never winnable; losses become the player's to learn from, not the shuffle's.
+* **Status:** Pyramid: on by default (toggle in the seed picker), next deal prefetched in the background so New Deal is usually instant, difficulty bands Easy ≤55 / Medium 56–60 / Hard 61+ moves. Klondike joins with its solver (see 3.4).
+
 ---
 
 ## 2. The "Next Step" Value

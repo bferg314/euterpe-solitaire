@@ -4,11 +4,13 @@ import type { LoadedDeck } from './services/deckLoader';
 import { loadInitialDeck } from './services/deckLoader';
 import { dealKlondike, isKlondikeWon, canAutoFinish, getNextAutoFinishMove, cloneKlondikeState, findAutoMove } from './engines/klondikeEngine';
 import { dealPyramid, isPyramidWon, findPyramidHint, clonePyramidState } from './engines/pyramidEngine';
-import { createSeedForDifficulty } from './services/rngService';
+import { createSeedForDifficulty, getDailyChallengeSeed } from './services/rngService';
+import { dailyCandidates, type FoundDeal } from './engines/dealFinder';
+import { findWinnableDealAsync } from './services/solverClient';
 import { recordGameResult } from './services/statsService';
 import { applyTheme, getSavedTheme, saveTheme } from './services/themeService';
 import { saveActiveGame, loadActiveGame, clearActiveGame } from './services/gamePersistenceService';
-import { computeParInfo, getCachedParInfo } from './services/parService';
+import { computeParInfo, getCachedParInfo, rememberSolvedPar } from './services/parService';
 import type { ParInfo } from './types/par';
 import { sound } from './services/audioService';
 
@@ -30,7 +32,7 @@ import { DeadlockBanner } from './components/DeadlockBanner';
 import type { TimelineStep } from './types/fork';
 import { checkKlondikeDeadlock, checkPyramidDeadlock, tagMoveTransition } from './engines/deadlockDetector';
 import { getSavedSettings, saveSettings, type ParlorComfortSettings } from './services/settingsService';
-import { GitFork } from 'lucide-react';
+import { GitFork, Loader2 } from 'lucide-react';
 
 interface ConfirmDialogConfig {
   isOpen: boolean;
@@ -79,6 +81,14 @@ export const App: React.FC = () => {
   // Parlor Comfort Settings (Ambient Vacuum & Smart Tap)
   const [comfortSettings, setComfortSettings] = useState<ParlorComfortSettings>(() => getSavedSettings());
 
+  const handleToggleWinnableOnly = () => {
+    setComfortSettings((prev) => {
+      const next = { ...prev, winnableOnly: !prev.winnableOnly };
+      saveSettings(next);
+      return next;
+    });
+  };
+
   const handleToggleAmbientVacuum = () => {
     setComfortSettings((prev) => {
       const next = { ...prev, ambientVacuumEnabled: !prev.ambientVacuumEnabled };
@@ -113,15 +123,33 @@ export const App: React.FC = () => {
   const par = parInfo?.par ?? 0;
   const parRequestRef = useRef(0);
 
+  // Set when the player picked the seed themselves (typed, shared or replayed), so a deal that
+  // can't be won gets a heads-up instead of being found out 40 moves in.
+  const explicitSeedRef = useRef(false);
+
   // Shows cached Par straight away, otherwise solves the deal in the background.
   const requestPar = useCallback(
     (mode: GameMode, diff: DifficultyLevel, seedForPar: string, klondike: KlondikeState | null, pyramid: PyramidState | null) => {
       const token = ++parRequestRef.current;
+      const warnIfUnwinnable = explicitSeedRef.current && mode === 'pyramid';
+      const apply = (info: ParInfo) => {
+        setParInfo(info);
+        if (!warnIfUnwinnable || info.winnable === true) return;
+        const warning =
+          info.winnable === false
+            ? "Heads up: this deal can't be won. No winning line exists."
+            : 'Heads up: no winning line was found for this deal, so it may not be winnable.';
+        setResumeMessage(warning);
+        setTimeout(() => setResumeMessage((current) => (current === warning ? null : current)), 7000);
+      };
       const cached = getCachedParInfo(mode, diff, seedForPar);
       setParInfo(cached);
-      if (cached) return;
+      if (cached) {
+        apply(cached);
+        return;
+      }
       computeParInfo(mode, diff, seedForPar, klondike, pyramid).then((info) => {
-        if (info && parRequestRef.current === token) setParInfo(info);
+        if (info && parRequestRef.current === token) apply(info);
       });
     },
     []
@@ -264,16 +292,55 @@ export const App: React.FC = () => {
     };
   }, [isWon, isShuffling, deckLoading, trainer]);
 
+  // Winnable-only dealing (Pyramid): random deals are searched in the solver worker for one that
+  // can be won at the chosen difficulty. The next deal is found in the background while you play,
+  // so New Deal is usually instant.
+  const [findingDeal, setFindingDeal] = useState(false);
+  const dealSearchRef = useRef(0);
+  const prefetchRef = useRef<{ difficulty: DifficultyLevel; promise: Promise<FoundDeal | null> } | null>(null);
+
   const startNewDeal = useCallback(
     (mode: GameMode = gameMode, diff: DifficultyLevel = difficulty, newSeed?: string) => {
       if (!deck) return;
-      const finalSeed = newSeed || createSeedForDifficulty(diff);
-      setGameMode(mode);
-      setDifficulty(diff);
-      setSeed(finalSeed);
-      startNewGameWithDeck(deck, mode, diff, finalSeed);
+      const activeDeck = deck;
+      // The daily is the same deal for everyone: the first winnable seed walking on from today's.
+      const isDaily = diff === 'daily' && (!newSeed || newSeed === getDailyChallengeSeed());
+      const searchForWinnable = mode === 'pyramid' && (isDaily || (!newSeed && comfortSettings.winnableOnly));
+      explicitSeedRef.current = Boolean(newSeed) && !isDaily;
+
+      const deal = (finalSeed: string) => {
+        setGameMode(mode);
+        setDifficulty(diff);
+        setSeed(finalSeed);
+        startNewGameWithDeck(activeDeck, mode, diff, finalSeed);
+      };
+      if (!searchForWinnable) {
+        deal(newSeed || createSeedForDifficulty(diff));
+        return;
+      }
+
+      const token = ++dealSearchRef.current;
+      const search = () =>
+        findWinnableDealAsync(activeDeck, diff, isDaily ? dailyCandidates(getDailyChallengeSeed()) : undefined);
+      const prefetched = !isDaily && prefetchRef.current?.difficulty === diff ? prefetchRef.current.promise : null;
+      prefetchRef.current = null;
+      setFindingDeal(true);
+      // A prefetch that got cancelled resolves null; search afresh in that case.
+      (prefetched ? prefetched.then((found) => found ?? search()) : search()).then((found) => {
+        if (dealSearchRef.current !== token) return;
+        setFindingDeal(false);
+        if (found) {
+          rememberSolvedPar(mode, diff, found.seed, found.ace);
+          deal(found.seed);
+        } else {
+          deal(createSeedForDifficulty(diff));
+          setResumeMessage("Couldn't find a winnable deal in time, so this one may not be winnable.");
+          setTimeout(() => setResumeMessage(null), 5000);
+        }
+        if (!isDaily) prefetchRef.current = { difficulty: diff, promise: search() };
+      });
     },
-    [deck, gameMode, difficulty, startNewGameWithDeck]
+    [deck, gameMode, difficulty, startNewGameWithDeck, comfortSettings.winnableOnly]
   );
 
   // Victory check for Klondike
@@ -794,7 +861,8 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleRequestApplySeed = (newSeed: string, newDiff: DifficultyLevel) => {
+  // `newSeed` is null when the player picked a difficulty without choosing a seed of their own.
+  const handleRequestApplySeed = (newSeed: string | null, newDiff: DifficultyLevel) => {
     if (moves > 0 && !isWon) {
       setConfirmDialog({
         isOpen: true,
@@ -805,12 +873,12 @@ export const App: React.FC = () => {
         onConfirm: () => {
           setConfirmDialog(null);
           setShowSeedModal(false);
-          startNewDeal(gameMode, newDiff, newSeed);
+          startNewDeal(gameMode, newDiff, newSeed ?? undefined);
         },
       });
     } else {
       setShowSeedModal(false);
-      startNewDeal(gameMode, newDiff, newSeed);
+      startNewDeal(gameMode, newDiff, newSeed ?? undefined);
     }
   };
 
@@ -980,6 +1048,14 @@ export const App: React.FC = () => {
           />
         )}
 
+        {/* Winnable-deal search (usually skipped: the next deal is found in the background) */}
+        {findingDeal && (
+          <div className="finding-deal-overlay" role="status">
+            <Loader2 size={26} className="spin gold-icon" />
+            <span>Finding a winnable deal…</span>
+          </div>
+        )}
+
         {/* Fork Timeline Floating Preview Pill */}
         {forkPreviewIndex !== null && showForkModal && (
           <div className="fork-preview-floating-indicator">
@@ -1059,6 +1135,9 @@ export const App: React.FC = () => {
         <SeedModal
           currentSeed={seed}
           currentDifficulty={difficulty}
+          gameMode={gameMode}
+          winnableOnly={comfortSettings.winnableOnly}
+          onToggleWinnableOnly={handleToggleWinnableOnly}
           onApplySeedAndDifficulty={handleRequestApplySeed}
           onClose={() => setShowSeedModal(false)}
         />

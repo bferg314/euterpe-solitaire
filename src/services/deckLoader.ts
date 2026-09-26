@@ -1,6 +1,5 @@
 import JSZip from 'jszip';
 import type { OpenPlayingCardsDeck } from '../types/openPlayingCards';
-import type { SolitaireCard } from '../types/solitaire';
 import { getSelectedDeckChoice, loadCustomDeckFromStorage } from './deckStorageService';
 
 export interface LoadedDeck {
@@ -210,20 +209,5 @@ export function getActiveDeck(): LoadedDeck | null {
   return activeDeckCache;
 }
 
-/**
- * Creates 52 SolitaireCard objects based on the active deck
- */
-export function createStandardPack(deck: LoadedDeck): SolitaireCard[] {
-  const standardCards = deck.deck.cards.filter((c) => c.kind === 'standard' && c.suit && c.rank);
 
-  return standardCards.map((c, index) => {
-    const urls = deck.cardUrls.get(c.id);
-    return {
-      ...c,
-      instanceId: `${c.id}-${index}-${Date.now()}`,
-      faceUp: false,
-      resolvedVector: urls?.svg,
-      resolvedImage: urls?.png,
-    };
-  });
-}
+export { createStandardPack } from './standardPack';
