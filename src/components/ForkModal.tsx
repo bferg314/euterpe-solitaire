@@ -15,6 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import type { TimelineStep, TimelineDecisionTag } from '../types/fork';
+import { ScrollRow } from './ScrollRow';
 
 interface ForkModalProps {
   isOpen: boolean;
@@ -204,7 +205,7 @@ export const ForkModal: React.FC<ForkModalProps> = ({
         {/* Quick Jump Bookmarks for Crucial Choices */}
         <div className="key-decision-chips-section">
           <span className="chips-label">KEY JUNCTURES:</span>
-          <div className="chips-scroll-row">
+          <ScrollRow className="chips-scroll-row" ariaLabel="Key junctures" activeKey={previewIndex}>
             {keyDecisions.map((kd) => (
               <button
                 key={kd.stepIndex}
@@ -216,7 +217,7 @@ export const ForkModal: React.FC<ForkModalProps> = ({
                 <span className="chip-desc">{kd.tag.toUpperCase()}</span>
               </button>
             ))}
-          </div>
+          </ScrollRow>
         </div>
 
         {/* Selected Step Card */}

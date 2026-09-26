@@ -25,6 +25,7 @@ import { DeckManagerModal } from './components/DeckManagerModal';
 import { ThemeModal } from './components/ThemeModal';
 import { RulesModal, type RulesTab } from './components/RulesModal';
 import { TrainerView } from './components/TrainerView';
+import { StrategyModal } from './components/StrategyModal';
 import type { TrainerTier } from './engines/trainer/lineBuilder';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ForkModal } from './components/ForkModal';
@@ -166,6 +167,7 @@ export const App: React.FC = () => {
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [showStrategyModal, setShowStrategyModal] = useState(false);
   const [rulesTab, setRulesTab] = useState<RulesTab>('klondike');
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogConfig | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
@@ -910,6 +912,7 @@ export const App: React.FC = () => {
         setShowDeckModal(false);
         setShowThemeModal(false);
         setShowRulesModal(false);
+        setShowStrategyModal(false);
         setShowForkModal(false);
         setForkPreviewIndex(null);
         setConfirmDialog(null);
@@ -930,6 +933,7 @@ export const App: React.FC = () => {
     !showDeckModal &&
     !showThemeModal &&
     !showRulesModal &&
+    !showStrategyModal &&
     !showForkModal &&
     forkPreviewIndex === null &&
     !trainer &&
@@ -1028,6 +1032,7 @@ export const App: React.FC = () => {
         onOpenThemeModal={() => setShowThemeModal(true)}
         onOpenDeckModal={() => setShowDeckModal(true)}
         onOpenTrainer={() => setTrainer({ seed, difficulty, tier: 'ace' })}
+        onOpenStrategy={() => setShowStrategyModal(true)}
         onOpenRulesModal={() => {
           setRulesTab(gameMode === 'pyramid' ? 'pyramid' : 'klondike');
           setShowRulesModal(true);
@@ -1161,6 +1166,13 @@ export const App: React.FC = () => {
 
       {showRulesModal && (
         <RulesModal initialTab={rulesTab} onClose={() => setShowRulesModal(false)} />
+      )}
+
+      {showStrategyModal && (
+        <StrategyModal
+          initialTab={gameMode === 'pyramid' ? 'pyramid' : gameMode === 'klondike-3' ? 'turn3' : 'turn1'}
+          onClose={() => setShowStrategyModal(false)}
+        />
       )}
 
       {/* Trainer: watch a bot play a known winning line */}
