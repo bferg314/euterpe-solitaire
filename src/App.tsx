@@ -1112,6 +1112,7 @@ export const App: React.FC = () => {
           moves={moves}
           par={par}
           ace={parInfo?.ace ?? null}
+          parExact={parInfo?.isExact ?? false}
           timeSeconds={timeSeconds}
           score={score}
           onPlayAgain={() => startNewDeal(gameMode, difficulty)}
