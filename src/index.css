@@ -2563,15 +2563,90 @@ body, html {
   font-weight: 700;
   color: #64748b;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .chips-scroll-row {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Sideways row with no scrollbar: wheel, arrows and edge fades instead (see ScrollRow) */
+.scroll-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.scroll-row-track {
   display: flex;
   align-items: center;
   gap: 6px;
-  overflow-x: auto;
   padding: 2px 0;
-  scrollbar-width: thin;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.scroll-row-track::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-row.can-left .scroll-row-track {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px);
+}
+
+.scroll-row.can-right .scroll-row-track {
+  mask-image: linear-gradient(to left, transparent 0, #000 28px);
+}
+
+.scroll-row.can-left.can-right .scroll-row-track {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+
+.scroll-row-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: rgba(15, 23, 42, 0.92);
+  color: var(--color-gold);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.scroll-row-arrow.left {
+  left: 0;
+}
+
+.scroll-row-arrow.right {
+  right: 0;
+}
+
+.scroll-row.can-left .scroll-row-arrow.left,
+.scroll-row.can-right .scroll-row-arrow.right {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scroll-row-arrow:hover {
+  background: rgba(212, 175, 55, 0.2);
+}
+
+.scroll-row-arrow:focus-visible {
+  outline: 2px solid #fde047;
+  outline-offset: 2px;
 }
 
 .key-decision-chip {
@@ -3301,4 +3376,37 @@ kbd {
   margin-top: 2px;
   font-size: 12px;
   color: #94a3b8;
+}
+
+/* Strategy Guide: the "before every move" scan */
+.strategy-checklist {
+  margin: 4px 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.strategy-checklist-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--color-gold);
+  margin-bottom: 4px;
+}
+
+.strategy-checklist ol {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.strategy-checklist li {
+  margin-bottom: 4px;
+}
+
+/* Thin gold scrollbars everywhere, instead of the browser's default light ones */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.4) transparent;
 }

@@ -15,6 +15,7 @@ import {
   PlusCircle,
   GitFork,
   GraduationCap,
+  BookOpen,
 } from 'lucide-react';
 
 interface HeaderBarProps {
@@ -52,6 +53,7 @@ interface HeaderBarProps {
   onOpenDeckModal: () => void;
   onOpenRulesModal: () => void;
   onOpenTrainer?: () => void;
+  onOpenStrategy?: () => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -87,6 +89,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenDeckModal,
   onOpenRulesModal,
   onOpenTrainer,
+  onOpenStrategy,
 }) => {
   const formatTime = (secs: number): string => {
     const mins = Math.floor(secs / 60);
@@ -267,6 +270,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <GraduationCap size={16} />
           </button>
         )}
+
+        {onOpenStrategy && (
+          <button className="icon-btn" onClick={onOpenStrategy} title="Strategy Guide - How to win and not miss moves">
+            <BookOpen size={16} />
+          </button>
+        )}
+
         <div className="btn-divider" />
 
         <button className="icon-btn" onClick={onOpenThemeModal} title="Table Themes">
