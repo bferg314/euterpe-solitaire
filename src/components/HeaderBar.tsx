@@ -14,6 +14,7 @@ import {
   FolderOpen,
   PlusCircle,
   GitFork,
+  GraduationCap,
 } from 'lucide-react';
 
 interface HeaderBarProps {
@@ -50,6 +51,7 @@ interface HeaderBarProps {
   onOpenThemeModal: () => void;
   onOpenDeckModal: () => void;
   onOpenRulesModal: () => void;
+  onOpenTrainer?: () => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -84,6 +86,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenThemeModal,
   onOpenDeckModal,
   onOpenRulesModal,
+  onOpenTrainer,
 }) => {
   const formatTime = (secs: number): string => {
     const mins = Math.floor(secs / 60);
@@ -249,6 +252,21 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </button>
         )}
 
+
+        {onOpenTrainer && (
+          <button
+            className="icon-btn"
+            onClick={onOpenTrainer}
+            disabled={gameMode !== 'pyramid'}
+            title={
+              gameMode === 'pyramid'
+                ? 'Trainer - Watch a bot win this deal at five skill levels'
+                : 'Trainer - Pyramid only for now (Klondike is coming)'
+            }
+          >
+            <GraduationCap size={16} />
+          </button>
+        )}
         <div className="btn-divider" />
 
         <button className="icon-btn" onClick={onOpenThemeModal} title="Table Themes">

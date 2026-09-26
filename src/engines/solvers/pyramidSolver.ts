@@ -173,10 +173,16 @@ const PAIR_WASTE = 5; // operand: position (paired with the waste top)
 
 export interface PyramidSolveOptions {
   maxNodes?: number;
+  /**
+   * Only look for lines of at most this many moves. The search then reports "unsolvable" when
+   * no line that short exists, which is far quicker than proving the true shortest line.
+   */
+  maxLength?: number;
 }
 
 export function solvePyramid(state: PyramidState, options: PyramidSolveOptions = {}): SolveResult<PyramidSolverMove> {
   const maxNodes = options.maxNodes ?? DEFAULT_MAX_NODES;
+  const maxLength = options.maxLength ?? Infinity;
   const deal = packState(state);
   const { pyramidValues: pv, reserveValues: rv } = deal;
   const reserveCount = rv.length;
@@ -234,6 +240,7 @@ export function solvePyramid(state: PyramidState, options: PyramidSolveOptions =
       return;
     }
     const f = g + h;
+    if (f > maxLength) return;
     (buckets[f] ??= []).push(n);
     if (f < lowestBucket) lowestBucket = f;
   };

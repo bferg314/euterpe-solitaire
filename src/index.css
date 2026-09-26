@@ -2996,3 +2996,267 @@ kbd {
   color: #94a3b8;
   font-size: 11px;
 }
+
+/* Read-only boards (the Trainer's replay) */
+.read-only .solitaire-card,
+.read-only .card-slot {
+  cursor: default;
+}
+
+.read-only .solitaire-card.face-up:hover {
+  transform: none;
+  box-shadow: var(--card-shadow);
+}
+
+/* ==========================================================================
+   TRAINER (watch a bot play a known winning line)
+   ========================================================================== */
+
+.trainer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  background: var(--table-bg);
+  color: #f8fafc;
+}
+
+.trainer-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: rgba(5, 12, 9, 0.72);
+  border-bottom: 1px solid var(--surface-border);
+  backdrop-filter: blur(10px);
+  flex-wrap: wrap;
+}
+
+.trainer-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+}
+
+.trainer-title h3 {
+  font-family: var(--font-serif);
+  color: var(--color-gold);
+  font-size: 18px;
+  margin: 0;
+}
+
+.trainer-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.trainer-tier-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.trainer-tier-chip {
+  --tier-color: #94a3b8;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--tier-color) 45%, transparent);
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.trainer-tier-chip.tier-ace { --tier-color: #38bdf8; }
+.trainer-tier-chip.tier-eagle { --tier-color: #f59e0b; }
+.trainer-tier-chip.tier-birdie { --tier-color: #d4af37; }
+.trainer-tier-chip.tier-par { --tier-color: #10b981; }
+.trainer-tier-chip.tier-bogey { --tier-color: #f97316; }
+
+.trainer-tier-chip:hover:not(:disabled),
+.trainer-tier-chip.active {
+  background: color-mix(in srgb, var(--tier-color) 22%, rgba(15, 23, 42, 0.8));
+  border-color: var(--tier-color);
+}
+
+.trainer-tier-chip.active .chip-tier-name {
+  color: var(--tier-color);
+}
+
+.trainer-tier-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chip-tier-moves {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.trainer-table {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px 24px;
+  overflow-y: auto;
+}
+
+.trainer-message {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  color: #cbd5e1;
+  max-width: 420px;
+}
+
+.trainer-dock {
+  display: grid;
+  gap: 10px;
+  padding: 12px 20px 14px;
+  background: rgba(5, 12, 9, 0.8);
+  border-top: 1px solid var(--surface-border);
+  backdrop-filter: blur(10px);
+}
+
+.trainer-narration {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+}
+
+.trainer-progress-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.trainer-rating {
+  font-weight: 600;
+}
+
+.trainer-last-move {
+  margin: 0;
+  font-size: 15px;
+  color: #f8fafc;
+}
+
+.trainer-next-move {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.trainer-lesson {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  color: #fed7aa;
+  font-size: 13px;
+}
+
+.trainer-lesson svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #fb923c;
+}
+
+.trainer-scrubber {
+  position: relative;
+}
+
+.slider-tick.slip {
+  background: #fb923c;
+  box-shadow: 0 0 6px #fb923c;
+}
+
+.trainer-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trainer-play-btn {
+  min-width: 112px;
+  justify-content: center;
+}
+
+.trainer-speed {
+  display: inline-flex;
+  margin-left: 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.trainer-speed-btn {
+  padding: 5px 10px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.trainer-speed-btn.active {
+  background: var(--color-gold);
+  color: #0f172a;
+}
+
+.trainer-footnote {
+  margin: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.spin {
+  animation: trainer-spin 1s linear infinite;
+}
+
+@keyframes trainer-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+}
+
+@media (max-width: 620px) {
+  .trainer-header { padding: 8px 16px; }
+  .trainer-table { padding: 12px 16px; }
+  .trainer-dock { padding: 10px 16px 12px; }
+  .trainer-speed { margin-left: 0; }
+}
+
+/* The Trainer sizes cards to fit the pyramid, stock and waste between its header and dock:
+   the layout is about 6 card-widths tall plus fixed chrome. Height derives from width here
+   too, since the root's --card-h was computed from the root's --card-w. */
+.trainer-overlay {
+  --card-w: clamp(44px, min(8vw, calc((100vh - 420px) / 6)), 104px);
+  --card-h: calc(var(--card-w) * var(--card-aspect-ratio));
+  --card-radius: calc(var(--card-w) * (3.5 / 63.5));
+}

@@ -248,6 +248,28 @@ export function applyPyramidMove(state: PyramidState, move: PyramidSolverMove): 
   }
 }
 
+/** Every legal move from a state: draw or recycle, each playable King, and each pair to 13. */
+export function listPyramidMoves(state: PyramidState): PyramidSolverMove[] {
+  const playable: PyramidCardRef[] = [];
+  if (state.waste.length > 0) playable.push({ from: 'waste' });
+  for (let row = 0; row < 7; row++) {
+    for (let col = 0; col <= row; col++) {
+      if (resolvePyramidCard(state, { from: 'pyramid', row, col })) playable.push({ from: 'pyramid', row, col });
+    }
+  }
+  const moves: PyramidSolverMove[] = [];
+  if (state.stock.length > 0) moves.push({ type: 'draw' });
+  else if (state.waste.length > 0) moves.push({ type: 'recycle' });
+  playable.forEach((a, i) => {
+    const cardA = resolvePyramidCard(state, a)!;
+    if (isKing(cardA)) moves.push({ type: 'king', card: a });
+    for (const b of playable.slice(i + 1)) {
+      if (doCardsSumTo13(cardA, resolvePyramidCard(state, b)!)) moves.push({ type: 'pair', a, b });
+    }
+  });
+  return moves;
+}
+
 /** The move-history description the board uses for each kind of move. */
 export function describePyramidMove(state: PyramidState, move: PyramidSolverMove): string {
   switch (move.type) {

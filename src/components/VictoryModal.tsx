@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import type { GameMode, DifficultyLevel } from '../types/solitaire';
-import { Trophy, Clock, CheckCircle2, RotateCcw, Play, Share2 } from 'lucide-react';
+import { Trophy, Clock, CheckCircle2, RotateCcw, Play, Share2, GraduationCap } from 'lucide-react';
 import { sound } from '../services/audioService';
 import { EfficiencyBadge } from './EfficiencyBadge';
 import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
@@ -18,6 +18,8 @@ interface VictoryModalProps {
   ace?: number | null;
   onPlayAgain: () => void;
   onReplaySeed: () => void;
+  /** Opens the Trainer on this deal (Pyramid only for now). */
+  onWatchTrainer?: () => void;
   onClose: () => void;
 }
 
@@ -32,6 +34,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   ace = null,
   onPlayAgain,
   onReplaySeed,
+  onWatchTrainer,
   onClose,
 }) => {
   useEffect(() => {
@@ -62,7 +65,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
     return `${mins}m ${s.toString().padStart(2, '0')}s`;
   };
 
-  const eff = par > 0 ? calculateEfficiency(moves, par, ace) : null;
+  const eff = par > 0 ? calculateEfficiency(moves, par, ace, gameMode) : null;
 
   const copyShareText = () => {
     const parInfo = eff ? ` (${formatParDelta(eff.delta)} ${eff.label}, ${eff.efficiencyPct}% Efficiency)` : '';
@@ -90,6 +93,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               actualMoves={moves}
               par={par}
               ace={ace}
+              mode={gameMode}
               showDescription={true}
             />
           </div>
@@ -131,6 +135,16 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             <RotateCcw size={16} />
             <span>Chase Better Par</span>
           </button>
+          {onWatchTrainer && (
+            <button
+              className="secondary-action-btn"
+              onClick={onWatchTrainer}
+              title="Watch a bot play this deal's best line, and how weaker lines lose moves"
+            >
+              <GraduationCap size={16} />
+              <span>Watch the Ace line</span>
+            </button>
+          )}
           <button className="secondary-action-btn" onClick={copyShareText} title="Share results with efficiency rating">
             <Share2 size={16} />
           </button>
