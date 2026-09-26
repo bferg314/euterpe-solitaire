@@ -18,6 +18,8 @@ export interface ParInfo {
   ace: number | null;
   /** False when Par is a heuristic estimate rather than derived from a solved line. */
   isExact: boolean;
+  /** Whether the deal can be won: known from a solve, or null when unknown (no solver, or it gave up). */
+  winnable: boolean | null;
 }
 
 export interface CachedParRecord extends ParInfo {

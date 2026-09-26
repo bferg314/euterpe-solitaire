@@ -1,4 +1,6 @@
-import type { PyramidState } from '../types/solitaire';
+import type { DifficultyLevel, PyramidState } from '../types/solitaire';
+import type { LoadedDeck } from './deckLoader';
+import { findWinnablePyramidDeal, type FoundDeal } from '../engines/dealFinder';
 import type { PyramidSolverMove, SolveResult, SolveStatus } from '../engines/solvers/types';
 import type { TierLine } from '../engines/trainer/lineBuilder';
 import { solvePyramid } from '../engines/solvers/pyramidSolver';
@@ -6,12 +8,14 @@ import { buildPyramidTierLines } from '../engines/trainer/lineBuilder';
 
 export type SolverRequest =
   | { id: number; kind: 'solve'; state: PyramidState; maxNodes?: number }
-  | { id: number; kind: 'tierLines'; state: PyramidState; seed: string };
+  | { id: number; kind: 'tierLines'; state: PyramidState; seed: string }
+  | { id: number; kind: 'findDeal'; deck: LoadedDeck; difficulty: DifficultyLevel; seeds?: string[] };
 
 export type SolverResponse =
   | { id: number; type: 'solved'; result: SolveResult<PyramidSolverMove> }
   | { id: number; type: 'line'; line: TierLine; ace: number; par: number }
-  | { id: number; type: 'done'; status: SolveStatus; ace: number; par: number };
+  | { id: number; type: 'done'; status: SolveStatus; ace: number; par: number }
+  | { id: number; type: 'deal'; found: FoundDeal | null };
 
 type RequestBody = SolverRequest extends infer R ? (R extends SolverRequest ? Omit<R, 'id'> : never) : never;
 
@@ -115,4 +119,21 @@ export function cancelTrainerWork(): void {
   channel.worker.terminate();
   channel.pending.cancel();
   channels.delete('trainer');
+}
+
+/**
+ * Finds a winnable Pyramid deal in the worker (see `findWinnablePyramidDeal`). Runs on its own
+ * channel, so it never interrupts par solving or the Trainer.
+ */
+export function findWinnableDealAsync(
+  deck: LoadedDeck,
+  difficulty: DifficultyLevel,
+  seeds?: string[]
+): Promise<FoundDeal | null> {
+  if (!workersAvailable()) return Promise.resolve(findWinnablePyramidDeal(deck, difficulty, seeds));
+  return send<FoundDeal | null>('deal', { kind: 'findDeal', deck, difficulty, seeds }, (msg, resolve) => {
+    if (msg.type !== 'deal') return false;
+    resolve(msg.found);
+    return true;
+  }).then((found) => found ?? null);
 }
