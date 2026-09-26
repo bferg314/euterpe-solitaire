@@ -222,7 +222,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ currentMode, onReplaySee
                       </td>
                       <td>
                         {entry.won && entry.par ? (
-                          <EfficiencyBadge actualMoves={entry.moves} par={entry.par} ace={entry.ace} compact={true} />
+                          <EfficiencyBadge actualMoves={entry.moves} par={entry.par} ace={entry.ace} mode={entry.gameMode} compact={true} />
                         ) : (
                           <span className="par-na">--</span>
                         )}

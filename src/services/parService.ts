@@ -39,7 +39,10 @@ function writeCacheRecord(key: string, info: ParInfo): void {
 export function getCachedParInfo(mode: GameMode, difficulty: DifficultyLevel, seed: string): ParInfo | null {
   const record = readCache()[getCacheKey(mode, difficulty, seed)];
   if (!record || typeof record.par !== 'number') return null;
-  return { par: record.par, ace: record.ace ?? null, isExact: record.isExact };
+  // Par is derived from the stored Ace line, so a change to the par formula applies to cached deals too.
+  const ace = record.ace ?? null;
+  if (record.isExact && ace != null) return { par: parFromAce(ace, mode), ace, isExact: true };
+  return { par: record.par, ace, isExact: record.isExact };
 }
 
 /** Heuristic Par for when no winning line is known. */
@@ -86,7 +89,7 @@ export async function computeParInfo(
 
   const info: ParInfo =
     result.status === 'solved'
-      ? { par: parFromAce(result.moves.length), ace: result.moves.length, isExact: true }
+      ? { par: parFromAce(result.moves.length, mode), ace: result.moves.length, isExact: true }
       : estimateParInfo(mode, difficulty, null, initialPyramid);
   // Unwinnable and out-of-budget deals are cached too: re-solving them would give the same answer.
   writeCacheRecord(getCacheKey(mode, difficulty, seed), info);

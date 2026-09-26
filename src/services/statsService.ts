@@ -87,7 +87,7 @@ export function recordGameResult(
 
       // Record Par efficiency metrics
       if (par && par > 0) {
-        const eff = calculateEfficiency(moves, par, ace);
+        const eff = calculateEfficiency(moves, par, ace, mode);
         ratingTier = eff.tier;
         if (eff.tier === 'ace') {
           current.acesCount = (current.acesCount || 0) + 1;

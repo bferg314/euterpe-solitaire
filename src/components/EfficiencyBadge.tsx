@@ -1,10 +1,12 @@
 import React from 'react';
 import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
+import type { GameMode } from '../types/solitaire';
 
 interface EfficiencyBadgeProps {
   actualMoves: number;
   par: number;
   ace?: number | null;
+  mode: GameMode;
   compact?: boolean;
   showDescription?: boolean;
   className?: string;
@@ -14,11 +16,12 @@ export const EfficiencyBadge: React.FC<EfficiencyBadgeProps> = ({
   actualMoves,
   par,
   ace = null,
+  mode,
   compact = false,
   showDescription = false,
   className = '',
 }) => {
-  const result = calculateEfficiency(actualMoves, par, ace);
+  const result = calculateEfficiency(actualMoves, par, ace, mode);
   const formattedDelta = formatParDelta(result.delta);
 
   if (compact) {

@@ -22,6 +22,8 @@ import { SeedModal } from './components/SeedModal';
 import { DeckManagerModal } from './components/DeckManagerModal';
 import { ThemeModal } from './components/ThemeModal';
 import { RulesModal, type RulesTab } from './components/RulesModal';
+import { TrainerView } from './components/TrainerView';
+import type { TrainerTier } from './engines/trainer/lineBuilder';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ForkModal } from './components/ForkModal';
 import { DeadlockBanner } from './components/DeadlockBanner';
@@ -139,6 +141,8 @@ export const App: React.FC = () => {
   const [rulesTab, setRulesTab] = useState<RulesTab>('klondike');
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogConfig | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
+  // The Trainer overlay: which deal and skill level it opened on (null when closed).
+  const [trainer, setTrainer] = useState<{ seed: string; difficulty: DifficultyLevel; tier: TrainerTier } | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const hasInitializedRef = useRef(false);
@@ -250,7 +254,7 @@ export const App: React.FC = () => {
 
   // Timer runner
   useEffect(() => {
-    if (!isWon && !isShuffling && !deckLoading) {
+    if (!isWon && !isShuffling && !deckLoading && !trainer) {
       timerRef.current = setInterval(() => {
         setTimeSeconds((s) => s + 1);
       }, 1000);
@@ -258,7 +262,7 @@ export const App: React.FC = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isWon, isShuffling, deckLoading]);
+  }, [isWon, isShuffling, deckLoading, trainer]);
 
   const startNewDeal = useCallback(
     (mode: GameMode = gameMode, diff: DifficultyLevel = difficulty, newSeed?: string) => {
@@ -814,6 +818,8 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // The Trainer handles its own keys; the game underneath stays untouched.
+      if (trainer) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -858,6 +864,7 @@ export const App: React.FC = () => {
     !showRulesModal &&
     !showForkModal &&
     forkPreviewIndex === null &&
+    !trainer &&
     !confirmDialog;
 
   const eligibleForAutoFinish =
@@ -952,6 +959,7 @@ export const App: React.FC = () => {
         onOpenStatsModal={() => setShowStatsModal(true)}
         onOpenThemeModal={() => setShowThemeModal(true)}
         onOpenDeckModal={() => setShowDeckModal(true)}
+        onOpenTrainer={() => setTrainer({ seed, difficulty, tier: 'ace' })}
         onOpenRulesModal={() => {
           setRulesTab(gameMode === 'pyramid' ? 'pyramid' : 'klondike');
           setShowRulesModal(true);
@@ -1027,6 +1035,14 @@ export const App: React.FC = () => {
           score={score}
           onPlayAgain={() => startNewDeal(gameMode, difficulty)}
           onReplaySeed={() => startNewDeal(gameMode, difficulty, seed)}
+          onWatchTrainer={
+            gameMode === 'pyramid'
+              ? () => {
+                  setShowVictoryModal(false);
+                  setTrainer({ seed, difficulty, tier: 'ace' });
+                }
+              : undefined
+          }
           onClose={() => setShowVictoryModal(false)}
         />
       )}
@@ -1066,6 +1082,17 @@ export const App: React.FC = () => {
 
       {showRulesModal && (
         <RulesModal initialTab={rulesTab} onClose={() => setShowRulesModal(false)} />
+      )}
+
+      {/* Trainer: watch a bot play a known winning line */}
+      {trainer && deck && (
+        <TrainerView
+          deck={deck}
+          seed={trainer.seed}
+          difficulty={trainer.difficulty}
+          initialTier={trainer.tier}
+          onClose={() => setTrainer(null)}
+        />
       )}
 
       {/* The Fork Timeline Modal */}

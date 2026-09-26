@@ -65,7 +65,7 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 ### 3.4 Solitaire Trainer `[In Progress]`
 * **Description:** Watch a bot win a deal along a known winning line at five skill levels: Bogey, Par, Birdie, Eagle and Ace. Weaker bots take realistic detours from the Ace line, and each detour is explained with the moves it cost.
 * **Value Proposition:** Shows what efficient play looks like on a real deal, and exactly where sloppy play loses moves.
-* **Status:** Phase 1 done (exact Pyramid solver in a worker, solver-based Par, new rating ladder). Next: the Pyramid trainer view, then the Klondike solver and trainer.
+* **Status:** Live for Pyramid: exact solver and solver-based Par, a Trainer overlay (header graduation cap, or "Watch the Ace line" after a win) with five bot levels built from the Ace line plus real slips, each slip explained with its cost, playback controls, a scrubber and keyboard control. Pyramid rates in 4-move bands with Par one typical slip (16 moves) above the Ace line, since a Pyramid slip usually costs a whole stock pass; Klondike keeps the golf-exact ladder. Next: the Klondike solver and trainer.
 
 ---
 

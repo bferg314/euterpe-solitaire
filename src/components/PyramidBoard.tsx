@@ -25,6 +25,10 @@ interface PyramidBoardProps {
   onStateChange: (newState: PyramidState, description: string) => void;
   /** Selection changes are not moves: no history, move count or score. */
   onSelectionChange: (newState: PyramidState) => void;
+  /** False for a read-only replay (the Trainer): clicks and keys do nothing. */
+  interactive?: boolean;
+  /** Cards to light up, e.g. the ones a replayed move is about to play. */
+  highlightCardIds?: string[];
 }
 
 type PyramidCursor = { zone: 'pyramid'; row: number; col: number } | { zone: 'stock' } | { zone: 'waste' };
@@ -82,6 +86,8 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
   onKeyboardActivate,
   onStateChange,
   onSelectionChange,
+  interactive = true,
+  highlightCardIds = [],
 }) => {
   const { pyramid, stock, waste, selectedCard } = state;
   const boardRef = useRef<HTMLDivElement>(null);
@@ -91,6 +97,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
 
   // Handle stock click (draw 1 card or recycle waste)
   const handleStockClick = () => {
+    if (!interactive) return;
     const move: PyramidSolverMove = stock.length > 0 ? { type: 'draw' } : { type: 'recycle' };
     const next = applyPyramidMove(state, move);
     if (!next) return;
@@ -104,6 +111,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
     source: 'pyramid' | 'waste',
     pos?: { row: number; col: number }
   ) => {
+    if (!interactive) return;
     const ref: PyramidCardRef = source === 'pyramid' && pos ? { from: 'pyramid', ...pos } : { from: 'waste' };
 
     // 1. King single-click removal (value = 13)
@@ -284,7 +292,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
 
   const keyboard = useBoardKeyboard({
     boardRef,
-    enabled: keyboardEnabled,
+    enabled: keyboardEnabled && interactive,
     onKey: handleKey,
     onActivate: onKeyboardActivate,
   });
@@ -299,8 +307,8 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
   return (
     <div
       ref={boardRef}
-      className={`pyramid-board ${showCursor ? 'kb-mode' : ''}`}
-      tabIndex={0}
+      className={`pyramid-board ${showCursor ? 'kb-mode' : ''} ${interactive ? '' : 'read-only'}`}
+      tabIndex={interactive ? 0 : -1}
       role="application"
       aria-roledescription="Pyramid board"
       aria-label="Pyramid board. Arrow keys move, Space or Enter selects and pairs cards, D draws, W takes the waste card. Press ? for all shortcuts."
@@ -339,7 +347,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
                 selectedCard?.source === 'pyramid' &&
                 selectedCard?.pos?.row === rowIdx &&
                 selectedCard?.pos?.col === colIdx;
-              const isHint = hintCardId === card.id;
+              const isHint = hintCardId === card.id || highlightCardIds.includes(card.id);
 
               return (
                 <div
@@ -355,7 +363,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
                     onClick={() => {
                       if (isExposed) {
                         handleCardInteraction(card, 'pyramid', { row: rowIdx, col: colIdx });
-                      } else {
+                      } else if (interactive) {
                         sound.playErrorBump();
                       }
                     }}
@@ -396,7 +404,7 @@ export const PyramidBoard: React.FC<PyramidBoardProps> = ({
                   card={topWaste}
                   deck={deck}
                   isSelected={selectedCard?.source === 'waste'}
-                  isHint={hintCardId === topWaste.id}
+                  isHint={hintCardId === topWaste.id || highlightCardIds.includes(topWaste.id)}
                   onClick={() => handleCardInteraction(topWaste, 'waste')}
                 />
                 <span className="pile-count-badge waste-count">{waste.length}</span>

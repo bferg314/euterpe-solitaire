@@ -54,6 +54,14 @@ const PYRAMID_KEYS: [string[], string][] = [
   [['Esc'], 'Clear the selection'],
 ];
 
+const TRAINER_KEYS: [string[], string][] = [
+  [['Space'], 'Play or pause the bot'],
+  [['←', '→'], 'Step back or forward one move'],
+  [['Home', 'or', 'End'], 'Jump to the deal or the finish'],
+  [['1', '–', '5'], 'Pick a level: Bogey, Par, Birdie, Eagle, Ace'],
+  [['Esc'], 'Close the Trainer'],
+];
+
 const GLOBAL_KEYS: [string[], string][] = [
   [['Ctrl+Z', 'or', 'U'], 'Undo'],
   [['Ctrl+Y'], 'Redo'],
@@ -181,6 +189,8 @@ export const RulesModal: React.FC<RulesModalProps> = ({ initialTab = 'klondike',
               <KeyTable rows={KLONDIKE_KEYS} />
               <h4>Pyramid</h4>
               <KeyTable rows={PYRAMID_KEYS} />
+              <h4>Trainer</h4>
+              <KeyTable rows={TRAINER_KEYS} />
             </div>
           )}
         </div>
