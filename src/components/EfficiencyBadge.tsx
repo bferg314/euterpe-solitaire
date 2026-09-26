@@ -4,6 +4,7 @@ import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
 interface EfficiencyBadgeProps {
   actualMoves: number;
   par: number;
+  ace?: number | null;
   compact?: boolean;
   showDescription?: boolean;
   className?: string;
@@ -12,11 +13,12 @@ interface EfficiencyBadgeProps {
 export const EfficiencyBadge: React.FC<EfficiencyBadgeProps> = ({
   actualMoves,
   par,
+  ace = null,
   compact = false,
   showDescription = false,
   className = '',
 }) => {
-  const result = calculateEfficiency(actualMoves, par);
+  const result = calculateEfficiency(actualMoves, par, ace);
   const formattedDelta = formatParDelta(result.delta);
 
   if (compact) {

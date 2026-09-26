@@ -8,7 +8,8 @@ import { createSeedForDifficulty } from './services/rngService';
 import { recordGameResult } from './services/statsService';
 import { applyTheme, getSavedTheme, saveTheme } from './services/themeService';
 import { saveActiveGame, loadActiveGame, clearActiveGame } from './services/gamePersistenceService';
-import { getOrComputePar } from './services/parService';
+import { computeParInfo, getCachedParInfo } from './services/parService';
+import type { ParInfo } from './types/par';
 import { sound } from './services/audioService';
 
 import { HeaderBar } from './components/HeaderBar';
@@ -105,7 +106,24 @@ export const App: React.FC = () => {
   const [moves, setMoves] = useState(0);
   const [score, setScore] = useState(0);
   const [timeSeconds, setTimeSeconds] = useState(0);
-  const [par, setPar] = useState<number>(0);
+  // Par for the current deal; null while the solver is still working it out.
+  const [parInfo, setParInfo] = useState<ParInfo | null>(null);
+  const par = parInfo?.par ?? 0;
+  const parRequestRef = useRef(0);
+
+  // Shows cached Par straight away, otherwise solves the deal in the background.
+  const requestPar = useCallback(
+    (mode: GameMode, diff: DifficultyLevel, seedForPar: string, klondike: KlondikeState | null, pyramid: PyramidState | null) => {
+      const token = ++parRequestRef.current;
+      const cached = getCachedParInfo(mode, diff, seedForPar);
+      setParInfo(cached);
+      if (cached) return;
+      computeParInfo(mode, diff, seedForPar, klondike, pyramid).then((info) => {
+        if (info && parRequestRef.current === token) setParInfo(info);
+      });
+    },
+    []
+  );
   const [isWon, setIsWon] = useState(false);
   const [hintCardId, setHintCardId] = useState<string | null>(null);
 
@@ -150,24 +168,22 @@ export const App: React.FC = () => {
       setForkPreviewIndex(null);
       clearActiveGame();
 
-      let computedPar = 0;
       if (mode === 'klondike-1' || mode === 'klondike-3') {
         const drawCount = mode === 'klondike-3' ? 3 : 1;
         const initial = dealKlondike(activeDeck, seedToUse, drawCount, diff);
         setKlondikeState(initial);
         setKlondikeHistory([]);
         setKlondikeFuture([]);
-        computedPar = getOrComputePar(mode, diff, seedToUse, initial, null);
+        requestPar(mode, diff, seedToUse, initial, null);
       } else {
         const initial = dealPyramid(activeDeck, seedToUse, diff);
         setPyramidState(initial);
         setPyramidHistory([]);
         setPyramidFuture([]);
-        computedPar = getOrComputePar(mode, diff, seedToUse, null, initial);
+        requestPar(mode, diff, seedToUse, null, initial);
       }
-      setPar(computedPar);
     },
-    []
+    [requestPar]
   );
 
   // Initial deck loading & game session restoration on mount
@@ -208,11 +224,16 @@ export const App: React.FC = () => {
           setShowDeadlockBanner(false);
           setShowForkModal(false);
           setForkPreviewIndex(null);
-          const restoredPar = saved.par || getOrComputePar(saved.gameMode, saved.difficulty, saved.seed, saved.klondikeState, saved.pyramidState);
-          setPar(restoredPar);
+          // Par belongs to the opening layout, which the seed deals again exactly.
+          if (saved.gameMode === 'pyramid') {
+            requestPar(saved.gameMode, saved.difficulty, saved.seed, null, dealPyramid(loaded, saved.seed, saved.difficulty));
+          } else {
+            const drawCount = saved.gameMode === 'klondike-3' ? 3 : 1;
+            requestPar(saved.gameMode, saved.difficulty, saved.seed, dealKlondike(loaded, saved.seed, drawCount, saved.difficulty), null);
+          }
           setIsWon(false);
           setShowVictoryModal(false);
-          setResumeMessage(`Resumed game in progress (${saved.moves} moves • Par ${restoredPar}${saved.branchCount ? ` • Branch #${saved.branchCount}` : ''})`);
+          setResumeMessage(`Resumed game in progress (${saved.moves} moves${saved.branchCount ? ` • Branch #${saved.branchCount}` : ''})`);
           setTimeout(() => setResumeMessage(null), 4000);
         } else {
           startNewGameWithDeck(loaded, gameMode, difficulty, seed);
@@ -258,10 +279,10 @@ export const App: React.FC = () => {
         setIsWon(true);
         setShowVictoryModal(true);
         clearActiveGame();
-        recordGameResult(gameMode, difficulty, true, timeSeconds, moves, score + 500, seed, par);
+        recordGameResult(gameMode, difficulty, true, timeSeconds, moves, score + 500, seed, par || undefined, parInfo?.ace);
       }
     }
-  }, [klondikeState, isWon, gameMode, difficulty, timeSeconds, moves, score, seed, par]);
+  }, [klondikeState, isWon, gameMode, difficulty, timeSeconds, moves, score, seed, par, parInfo]);
 
   // Victory check for Pyramid
   useEffect(() => {
@@ -270,10 +291,10 @@ export const App: React.FC = () => {
         setIsWon(true);
         setShowVictoryModal(true);
         clearActiveGame();
-        recordGameResult(gameMode, difficulty, true, timeSeconds, moves, score + 500, seed, par);
+        recordGameResult(gameMode, difficulty, true, timeSeconds, moves, score + 500, seed, par || undefined, parInfo?.ace);
       }
     }
-  }, [pyramidState, isWon, gameMode, difficulty, timeSeconds, moves, score, seed, par]);
+  }, [pyramidState, isWon, gameMode, difficulty, timeSeconds, moves, score, seed, par, parInfo]);
 
   // Auto-save active game session to localStorage
   useEffect(() => {
@@ -903,6 +924,8 @@ export const App: React.FC = () => {
         seed={seed}
         moves={moves}
         par={par}
+        parExact={parInfo?.isExact ?? false}
+        parPending={parInfo === null}
         timeSeconds={timeSeconds}
         score={score}
         canUndo={canUndo}
@@ -999,6 +1022,7 @@ export const App: React.FC = () => {
           seed={seed}
           moves={moves}
           par={par}
+          ace={parInfo?.ace ?? null}
           timeSeconds={timeSeconds}
           score={score}
           onPlayAgain={() => startNewDeal(gameMode, difficulty)}

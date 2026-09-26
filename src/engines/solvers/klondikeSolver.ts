@@ -1,10 +1,10 @@
 import type { KlondikeState, GameMode, DifficultyLevel } from '../../types/solitaire';
 
 /**
- * Calculates deterministic theoretical Par for Klondike Solitaire
+ * Heuristic Par estimate for Klondike (a real solver replaces this in a later phase)
  * Uses deep board entropy, hidden card depth analysis, and stock draw requirements
  */
-export function calculateKlondikePar(
+export function estimateKlondikePar(
   state: KlondikeState,
   mode: GameMode,
   difficulty: DifficultyLevel
