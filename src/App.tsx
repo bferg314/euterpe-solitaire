@@ -294,7 +294,7 @@ export const App: React.FC = () => {
     };
   }, [isWon, isShuffling, deckLoading, trainer]);
 
-  // Winnable-only dealing (Pyramid): random deals are searched in the solver worker for one that
+  // Winnable-only dealing (Pyramid, opt-in; always for the daily): random deals are searched in the solver worker for one that
   // can be won at the chosen difficulty. The next deal is found in the background while you play,
   // so New Deal is usually instant.
   const [findingDeal, setFindingDeal] = useState(false);

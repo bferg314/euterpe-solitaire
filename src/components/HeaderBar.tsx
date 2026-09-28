@@ -166,7 +166,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             par > 0 && (
               <div
                 className={`counter-item par-item ${moves <= par ? 'under-par' : 'over-par'}`}
-                title={`${parExact ? 'Par for this deal' : gameMode === 'pyramid' ? 'Estimated Par (no winning line found)' : 'Estimated Par'}: ${par} moves (${moves <= par ? `${par - moves} under Par` : `${moves - par} over Par`})`}
+                title={`${parExact ? 'Par for this deal' : 'Estimated Par'}: ${par} moves (${moves <= par ? `${par - moves} under Par` : `${moves - par} over Par`})${parExact ? '' : ". There's no guarantee this deal can be won."}`}
               >
                 <span className="counter-label">PAR</span>
                 <span className="counter-val">{parExact ? par : `~${par}`}</span>

@@ -58,7 +58,7 @@ Prototype the solver and run it on about 100 fixed seeds each for Turn 1 and Tur
 ### Phase 1 — Random by default
 
 - Set the `winnableOnly` default to `false`.
-- Change the Par tooltip and the Victory "PAR (EST.)" wording to the no-guarantee note.
+- Add the no-guarantee note to the estimated Par tooltip (the Victory dialog keeps "PAR (EST.)": a won deal was winnable).
 - Update the seed picker copy: a random deal "may not be winnable", and the toggle hint says what checking it does.
 - Update the Strategy Guide and the roadmap entry for 1.5.
 - Keep the explicit-seed "heads up" as it is.

@@ -238,7 +238,8 @@ const PyramidTab: React.FC = () => (
     <h4>Winnable deals</h4>
     <ul>
       <li>
-        With <strong>Winnable deals only</strong> on (the default), every random deal has a winning line. If you're stuck,
+        Deals are random, like a real deck, so some Pyramid deals can't be won. Turn on{' '}
+        <strong>Winnable deals only</strong> in the seed picker and every new deal has a winning line: if you're stuck,
         it's a missed pair or a pairing choice, not bad luck, so try The Fork.
       </li>
     </ul>
