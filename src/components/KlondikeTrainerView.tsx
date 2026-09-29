@@ -149,7 +149,6 @@ export const KlondikeTrainerView: React.FC<KlondikeTrainerViewProps> = ({ deck, 
             interactive={false}
             keyboardEnabled={false}
             ambientVacuumEnabled={false}
-            smartTapEnabled={false}
             onStateChange={noop}
           />
         )}

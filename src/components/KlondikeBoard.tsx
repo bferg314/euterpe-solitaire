@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { SolitaireCard, KlondikeState } from '../types/solitaire';
 import type { LoadedDeck } from '../services/deckLoader';
 import { CardView } from './CardView';
@@ -15,7 +15,7 @@ import {
   findSafeFoundationMove,
   getFoundationIndexForSuit,
 } from '../engines/safePlayEngine';
-import { FlyingCardOverlay, type FlyingCardAnim } from './FlyingCardOverlay';
+import { useCardMotion } from '../hooks/useCardMotion';
 import { sound } from '../services/audioService';
 import { useBoardKeyboard } from '../hooks/useBoardKeyboard';
 import { RefreshCw } from 'lucide-react';
@@ -25,7 +25,6 @@ interface KlondikeBoardProps {
   deck: LoadedDeck | null;
   hintCardId: string | null;
   ambientVacuumEnabled?: boolean;
-  smartTapEnabled?: boolean;
   keyboardEnabled?: boolean;
   onKeyboardActivate?: () => void;
   onStateChange: (newState: KlondikeState, description: string) => void;
@@ -90,7 +89,6 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
   deck,
   hintCardId,
   ambientVacuumEnabled = true,
-  smartTapEnabled = true,
   keyboardEnabled = true,
   onKeyboardActivate,
   onStateChange,
@@ -98,22 +96,8 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
   highlightCardIds = [],
 }) => {
   const [activeDrag, setActiveDrag] = useState<DragPayload | null>(null);
-  const [flyingAnims, setFlyingAnims] = useState<FlyingCardAnim[]>([]);
-  // A move waiting for its flight animation to land. It's applied to the board as it is then,
-  // so a move made meanwhile (auto-finish, another sweep) can't be undone by a stale board.
-  const pendingMoveRef = useRef<{
-    source: KlondikeMoveSource;
-    target: KlondikeMoveTarget;
-    cardId: string;
-    description: string;
-  } | null>(null);
-  const stateRef = useRef(state);
-  useLayoutEffect(() => {
-    stateRef.current = state;
-  });
-  const isFlyingRef = useRef(false);
-  const animSeqRef = useRef(0);
   const boardRef = useRef<HTMLDivElement>(null);
+  const { skipNextMotion } = useCardMotion(boardRef, state);
 
   const [rawCursor, setCursor] = useState<KlondikeCursor>({ zone: 'top', slot: 0 });
   const [rawHeld, setHeld] = useState<HeldCards | null>(null);
@@ -125,7 +109,6 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
 
   // Stock click (draw cards or recycle waste)
   const handleStockClick = () => {
-    if (isFlyingRef.current) return;
     sound.playCardSlide();
     // Draw, or recycle the waste when the stock is empty.
     const recycle = state.stock.length === 0;
@@ -135,33 +118,15 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
     onStateChange(next, recycle ? 'Recycled waste to stock' : `Drew ${count} card(s) from stock`);
   };
 
-  // Completion callback for flying card animations
-  const handleFlightEnd = useCallback(() => {
-    setFlyingAnims([]);
-    isFlyingRef.current = false;
-    sound.playCardSnap();
-    const pending = pendingMoveRef.current;
-    pendingMoveRef.current = null;
-    if (!pending) return;
-    const result = applyKlondikeMove(stateRef.current, pending.source, pending.target);
-    // Dropped if the board changed under it and the move no longer applies to the same card.
-    if (result && result.cards[0].instanceId === pending.cardId) onStateChange(result.next, pending.description);
-  }, [onStateChange]);
-
   // Ambient Safe-Play Foundation Vacuum (Ambient Sweep)
   const isHolding = held !== null;
   useEffect(() => {
-    if (!ambientVacuumEnabled || activeDrag !== null || isHolding || isFlyingRef.current) return;
+    if (!ambientVacuumEnabled || activeDrag !== null || isHolding) return;
 
     const safeMove = findSafeFoundationMove(state);
     if (!safeMove) return;
 
     const timer = setTimeout(() => {
-      if (isFlyingRef.current || activeDrag !== null) return;
-
-      const srcEl = document.getElementById(`card-${safeMove.card.instanceId}`);
-      const dstEl = document.getElementById(`foundation-slot-${safeMove.targetFoundation}`);
-
       const source: KlondikeMoveSource =
         safeMove.from === 'waste'
           ? { pile: 'waste' }
@@ -169,42 +134,17 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       const target: KlondikeMoveTarget = { pile: 'foundation', index: safeMove.targetFoundation };
       const result = applyKlondikeMove(state, source, target);
       if (!result) return;
-      const { next } = result;
-      const movedCard = result.cards[0];
-      const desc = `Safe-Play Vacuum: ${movedCard.label} to Foundation`;
-
-      if (srcEl && dstEl) {
-        const srcRect = srcEl.getBoundingClientRect();
-        const dstRect = dstEl.getBoundingClientRect();
-        isFlyingRef.current = true;
-        pendingMoveRef.current = { source, target, cardId: movedCard.instanceId, description: desc };
-        sound.playCardSlide();
-        setFlyingAnims([
-          {
-            id: `vacuum-${movedCard.instanceId}-${animSeqRef.current++}`,
-            card: movedCard,
-            startX: srcRect.left,
-            startY: srcRect.top,
-            targetX: dstRect.left,
-            targetY: dstRect.top,
-            width: srcRect.width,
-            height: srcRect.height,
-            isVacuum: true,
-          },
-        ]);
-      } else {
-        sound.playCardSnap();
-        onStateChange(next, desc);
-      }
+      sound.playCardSnap();
+      onStateChange(result.next, `Safe-Play Vacuum: ${result.cards[0].label} to Foundation`);
     }, 140);
 
     return () => clearTimeout(timer);
   }, [state, ambientVacuumEnabled, activeDrag, isHolding, onStateChange]);
 
-  // Smart Destination Tap: intelligent move on single/double click with golden vector flight.
-  // Returns whether a move was found.
+  // Smart Destination Tap: a click (or Enter) plays the card to its best spot. Returns whether a
+  // move was found.
   const handleCardClick = (card: SolitaireCard): boolean => {
-    if (!card.faceUp || isFlyingRef.current) return false;
+    if (!card.faceUp) return false;
 
     const move = findSmartDestination(card, state);
     const source: KlondikeMoveSource | null =
@@ -224,54 +164,9 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       return false;
     }
 
-    const { next, cards: movedCards } = result;
-    const desc =
-      move.type === 'foundation'
-        ? `Moved ${movedCards[0].label} to Foundation`
-        : `Moved ${movedCards[0].label} to Tableau`;
-
-    // Attempt golden vector flight animation
-    const srcEl = document.getElementById(`card-${card.instanceId}`);
-    let dstRect: DOMRect | null = null;
-
-    if (move.type === 'foundation') {
-      const fEl = document.getElementById(`foundation-slot-${move.targetCol}`);
-      if (fEl) dstRect = fEl.getBoundingClientRect();
-    } else {
-      const tColEl = document.getElementById(`tableau-col-${move.targetCol}`);
-      if (tColEl) {
-        const colRect = tColEl.getBoundingClientRect();
-        const currentCount = state.tableau[move.targetCol].length;
-        let topOffset = 0;
-        for (let i = 0; i < currentCount; i++) {
-          topOffset += state.tableau[move.targetCol][i].faceUp ? 30 : 16;
-        }
-        dstRect = new DOMRect(colRect.left, colRect.top + topOffset, colRect.width, colRect.height);
-      }
-    }
-
-    if (smartTapEnabled && srcEl && dstRect) {
-      const srcRect = srcEl.getBoundingClientRect();
-      isFlyingRef.current = true;
-      pendingMoveRef.current = { source, target, cardId: movedCards[0].instanceId, description: desc };
-      sound.playCardSlide();
-      setFlyingAnims([
-        {
-          id: `tap-${card.instanceId}-${animSeqRef.current++}`,
-          card,
-          startX: srcRect.left,
-          startY: srcRect.top,
-          targetX: dstRect.left,
-          targetY: dstRect.top,
-          width: srcRect.width,
-          height: srcRect.height,
-          isVacuum: false,
-        },
-      ]);
-    } else {
-      sound.playCardSnap();
-      onStateChange(next, desc);
-    }
+    const moved = result.cards[0];
+    sound.playCardSnap();
+    onStateChange(result.next, move.type === 'foundation' ? `Moved ${moved.label} to Foundation` : `Moved ${moved.label} to Tableau`);
     return true;
   };
 
@@ -339,6 +234,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       return;
     }
     sound.playCardSnap();
+    skipNextMotion();
     onStateChange(result.next, `Moved cards to column ${targetColIdx + 1}`);
   };
 
@@ -358,6 +254,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       return;
     }
     sound.playCardSnap();
+    skipNextMotion();
     onStateChange(result.next, `Moved ${result.cards[0].label} to Foundation`);
   };
 
@@ -516,7 +413,6 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
   };
 
   const handleKey = (e: KeyboardEvent): boolean => {
-    const busy = isFlyingRef.current;
     switch (e.key) {
       case 'ArrowLeft':
       case 'ArrowRight': {
@@ -548,14 +444,13 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       }
       case ' ':
       case 'Enter':
-        if (busy) return true;
         if (held) dropOn(cursorTarget(cursor));
         else if (e.key === ' ' && !(cursor.zone === 'top' && cursor.slot === 0)) pickUp();
         else playAtCursor();
         return true;
       case 'd':
       case 'D':
-        if (!busy) drawFromStock();
+        drawFromStock();
         return true;
       case 'w':
       case 'W':
@@ -563,7 +458,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
         return true;
       case 'f':
       case 'F':
-        if (!busy) sendToFoundation();
+        sendToFoundation();
         return true;
       case 'a':
       case 'A':
@@ -583,7 +478,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
             return true;
           }
           moveCursorTo({ zone: 'tableau', col, index: TOP_OF_COLUMN });
-          if (held && !busy) dropOn({ pile: 'tableau', col });
+          if (held) dropOn({ pile: 'tableau', col });
           return true;
         }
         return false;
@@ -612,12 +507,6 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       aria-label="Klondike board. Arrow keys move, Space picks up or drops, Enter plays a card, D draws, 1 to 7 jump to a column, A selects the whole run. Press ? for all shortcuts."
       onFocus={keyboard.onBoardFocus}
     >
-      {/* Golden Vector Flight Animation Overlay */}
-      <FlyingCardOverlay
-        animations={flyingAnims}
-        deck={deck}
-        onAnimationEnd={handleFlightEnd}
-      />
 
       {/* Top Deck Arena (Stock, Waste, Foundations) */}
       <div className="board-top-row">
@@ -625,17 +514,20 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
           {/* Stock Pile */}
           <div
             className={`card-slot stock-slot ${state.stock.length === 0 ? 'empty' : ''} ${topSlotClass(0)}`}
+            data-card-origin="stock"
             onClick={handleStockClick}
             aria-label={state.stock.length > 0 ? `Draw card (${state.stock.length} left)` : 'Recycle waste'}
           >
             {state.stock.length > 0 ? (
               <div className="stock-cards-stack">
-                <CardView
-                  card={state.stock[state.stock.length - 1]}
-                  deck={deck}
-                  className="stock-top-card"
-                  isHint={highlightCardIds.includes(state.stock[state.stock.length - 1].id)}
-                />
+                <div className="motion-card" data-motion-id={state.stock[state.stock.length - 1].instanceId}>
+                  <CardView
+                    card={state.stock[state.stock.length - 1]}
+                    deck={deck}
+                    className="stock-top-card"
+                    isHint={highlightCardIds.includes(state.stock[state.stock.length - 1].id)}
+                  />
+                </div>
                 <span className="pile-count-badge">{state.stock.length}</span>
               </div>
             ) : (
@@ -656,9 +548,12 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
                     <div
                       key={card.instanceId}
                       id={`card-${card.instanceId}`}
+                      data-motion-id={card.instanceId}
+                      data-from-stock="true"
                       className={`waste-fanned-card ${isTop && held?.source.pile === 'waste' ? 'kb-held' : ''} ${isTop ? topSlotClass(1) : ''}`}
+                      // Offset with `left`, not a transform: card motion animates transforms.
                       style={{
-                        transform: `translateX(${idx * 16}px)`,
+                        left: `${idx * 16}px`,
                         zIndex: idx + 1,
                       }}
                     >
@@ -697,12 +592,14 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
                 onDrop={(e) => handleFoundationDrop(fIdx, e)}
               >
                 {topCard ? (
-                  <CardView
-                    card={topCard}
-                    deck={deck}
-                    draggable={true}
-                    onDragStart={(e) => handleFoundationDragStart(fIdx, e)}
-                  />
+                  <div className="motion-card" data-motion-id={topCard.instanceId}>
+                    <CardView
+                      card={topCard}
+                      deck={deck}
+                      draggable={true}
+                      onDragStart={(e) => handleFoundationDragStart(fIdx, e)}
+                    />
+                  </div>
                 ) : (
                   <span
                     className="slot-watermark foundation-symbol"
