@@ -148,8 +148,9 @@ export const SeedModal: React.FC<SeedModalProps> = ({
           <span>
             <strong>Winnable deals only</strong>
             <span className="winnable-toggle-hint">
-              New Pyramid deals are checked by the solver first, and sorted into tiers by how long their best line
-              is. Klondike joins once its solver lands. Seeds you type are always dealt as-is.
+              Off, deals are shuffled at random like a real deck, so some can't be won. On, new Pyramid deals are
+              checked by the solver first and sorted into tiers by how long their best line is; Klondike joins once
+              its solver lands. Seeds you type are always dealt as-is.
             </span>
           </span>
         </label>
