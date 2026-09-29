@@ -98,11 +98,16 @@ export function estimateKlondikePar(
  * Draws only matter for the waste card they bring up, and they don't interact with tableau
  * moves, so the search folds them in: "draw k times (recycling if needed), then play the card on
  * top" is one step costing k + 1. Positions that differ only in which columns hold which bare
- * runs count as one. A* with an admissible heuristic returns a shortest line in the game's own
- * move count, apart from the forced safe foundation moves (see `listSteps`).
+ * runs count as one, and moves that can't help are pruned (see `listSteps`).
+ *
+ * Plain A* can't prove shortest lines for Klondike in a browser's budget, so `findKlondikeLine`
+ * searches in passes: a heavily weighted one finds a winning line fast, then lighter ones look
+ * for shorter lines. Measured on 100 medium deals each (Node, 150k nodes per pass): Turn 1 won 83
+ * with a median line of 123 moves, 3 proven shortest; Turn 3 won 76 with a median of 102, 16
+ * proven shortest, and found no line in 10. Deals the search can't settle are left unknown.
  */
 
-const DEFAULT_KLONDIKE_MAX_NODES = 300_000;
+const DEFAULT_KLONDIKE_MAX_NODES = 150_000;
 
 const SUIT_ORDER = ['spades', 'hearts', 'diamonds', 'clubs'];
 const rankOf = (id: number) => (id % 13) + 1;
@@ -136,7 +141,9 @@ interface KStep {
 
 interface KDeal {
   hidden: number[][]; // face-down ids per column, bottom→top
+  hiddenBlockers: { blockers: number; minRank: number[] }[][];
   reserve: number[];
+  stockMask: number; // one bit per index of R
   drawCount: number;
   start: KPos;
 }
@@ -157,19 +164,30 @@ function packKlondike(state: KlondikeState): KDeal {
   const reserve = [...state.waste, ...[...state.stock].reverse()].map(cardId);
   return {
     hidden,
+    hiddenBlockers: hidden.map(hiddenBlockerTable),
     reserve,
+    stockMask: 2 ** reserve.length - 1,
     drawCount: state.drawCount,
     start: { found, down: hidden.map((h) => h.length), up, removed: 0, pointer: state.waste.length },
   };
+}
+
+// Column keys are cached per run array: runs are shared between positions and never mutated.
+const runKeys = new WeakMap<number[], string>();
+function runKey(run: number[]): string {
+  let k = runKeys.get(run);
+  if (k === undefined) {
+    k = String.fromCharCode(...run.map((id) => 65 + id));
+    runKeys.set(run, k);
+  }
+  return k;
 }
 
 function positionKey(p: KPos): string {
   const cols: string[] = [];
   for (let c = 0; c < 7; c++) {
     // Columns with face-down cards keep their identity; bare runs are interchangeable.
-    let k = p.down[c] > 0 ? String.fromCharCode(97 + c, 48 + p.down[c]) : '';
-    for (const id of p.up[c]) k += String.fromCharCode(65 + id);
-    cols.push(k);
+    cols.push(p.down[c] > 0 ? String.fromCharCode(97 + c, 48 + p.down[c]) + runKey(p.up[c]) : runKey(p.up[c]));
   }
   cols.sort();
   const f = p.found;
@@ -183,32 +201,40 @@ function isSafe(id: number, found: number[]): boolean {
   return isRed(id) ? found[0] >= rank - 1 && found[3] >= rank - 1 : found[1] >= rank - 1 && found[2] >= rank - 1;
 }
 
+interface ReserveReach {
+  reserve: number;
+  cost: number;
+  pointer: number;
+}
+
 /**
  * Waste cards reachable by drawing (and recycling), each with the fewest draws that bring it to
  * the top and the pointer at that moment. Includes the current waste top at cost 0.
  */
-function reachableReserve(deal: KDeal, p: KPos): { reserve: number; cost: number; pointer: number }[] {
-  const R = deal.reserve;
-  const out: { reserve: number; cost: number; pointer: number }[] = [];
-  const seenCard = new Set<number>();
-  const seenPointer = new Set<number>();
-  const topBelow = (ptr: number) => {
-    for (let r = ptr - 1; r >= 0; r--) if (!(p.removed & (1 << r))) return r;
-    return -1;
-  };
+function reachableReserve(deal: KDeal, p: KPos): ReserveReach[] {
+  const size = deal.reserve.length;
+  const out: ReserveReach[] = [];
+  let seenCards = 0;
+  let seenPointers = 0;
   let ptr = p.pointer;
   for (let cost = 0; ; cost++) {
-    const top = topBelow(ptr);
-    if (top >= 0 && !seenCard.has(top)) {
-      seenCard.add(top);
+    let top = -1;
+    for (let r = ptr - 1; r >= 0; r--) {
+      if (!(p.removed & (1 << r))) {
+        top = r;
+        break;
+      }
+    }
+    if (top >= 0 && !(seenCards & (1 << top))) {
+      seenCards |= 1 << top;
       out.push({ reserve: top, cost, pointer: ptr });
     }
-    if (seenPointer.has(ptr)) break;
-    seenPointer.add(ptr);
+    if (seenPointers & (1 << ptr)) break;
+    seenPointers |= 1 << ptr;
     // Draw up to drawCount remaining cards, or recycle when the stock is empty.
     let drawn = 0;
     let next = ptr;
-    while (next < R.length && drawn < deal.drawCount) {
+    while (next < size && drawn < deal.drawCount) {
       if (!(p.removed & (1 << next))) drawn++;
       next++;
     }
@@ -219,9 +245,9 @@ function reachableReserve(deal: KDeal, p: KPos): { reserve: number; cost: number
   return out;
 }
 
-function stockLeft(deal: KDeal, p: KPos): number {
+function popcount(m: number): number {
   let n = 0;
-  for (let r = p.pointer; r < deal.reserve.length; r++) if (!(p.removed & (1 << r))) n++;
+  for (; m !== 0; m &= m - 1) n++;
   return n;
 }
 
@@ -233,21 +259,31 @@ const cardsHome = (p: KPos) => p.found[0] + p.found[1] + p.found[2] + p.found[3]
  * card above a lower card of its own suit in a column must first move somewhere else.
  */
 function klondikeHeuristic(deal: KDeal, p: KPos): number {
-  let h = 52 - cardsHome(p) + Math.ceil(stockLeft(deal, p) / deal.drawCount);
-  const minRank = [0, 0, 0, 0];
-  const visit = (id: number) => {
-    const s = suitOf(id);
-    const r = rankOf(id);
-    if (minRank[s] < r) h++;
-    else minRank[s] = r;
-  };
+  const stock = popcount(deal.stockMask & ~p.removed & ~((1 << p.pointer) - 1));
+  let h = 52 - cardsHome(p) + Math.ceil(stock / deal.drawCount);
   for (let c = 0; c < 7; c++) {
-    minRank.fill(99);
-    const hidden = deal.hidden[c];
-    for (let i = 0; i < p.down[c]; i++) visit(hidden[i]);
-    for (const id of p.up[c]) visit(id);
+    const below = deal.hiddenBlockers[c][p.down[c]];
+    h += below.blockers;
+    const run = p.up[c];
+    if (run.length === 0) continue;
+    // Face-up runs alternate colours and descend, so within a run no card sits above a lower
+    // card of its own suit: only the face-down cards beneath can make a run card a blocker.
+    for (const id of run) if (below.minRank[suitOf(id)] < rankOf(id)) h++;
   }
   return h;
+}
+
+/** For each column and face-down count: blockers among those cards, and each suit's lowest rank. */
+function hiddenBlockerTable(hidden: number[]): { blockers: number; minRank: number[] }[] {
+  const table = [{ blockers: 0, minRank: [99, 99, 99, 99] }];
+  for (const id of hidden) {
+    const prev = table[table.length - 1];
+    const minRank = prev.minRank.slice();
+    const blocks = minRank[suitOf(id)] < rankOf(id);
+    if (!blocks) minRank[suitOf(id)] = rankOf(id);
+    table.push({ blockers: prev.blockers + (blocks ? 1 : 0), minRank });
+  }
+  return table;
 }
 
 function listSteps(deal: KDeal, p: KPos): KStep[] {
@@ -342,6 +378,37 @@ function applyStep(deal: KDeal, p: KPos, step: KStep): KPos {
   return { found, down, up, removed, pointer: step.from === 'reserve' ? step.pointer : p.pointer };
 }
 
+// Steps packed into 31 bits, so the open list can hold millions of them cheaply:
+// kind 1 | from 2 | card 6 | col 3 | to 3 | reserve 5 | pointer 5 | onto + 1 6.
+const FROM_CODES = ['tableau', 'reserve', 'foundation'] as const;
+
+function packStep(s: KStep): number {
+  return (
+    (s.kind === 'toTableau' ? 1 : 0) |
+    (FROM_CODES.indexOf(s.from) << 1) |
+    (s.card << 3) |
+    ((s.col & 7) << 9) |
+    ((s.to & 7) << 12) |
+    ((s.reserve & 31) << 15) |
+    (s.pointer << 20) |
+    ((s.onto + 1) << 25)
+  );
+}
+
+function unpackStep(code: number): KStep {
+  return {
+    kind: code & 1 ? 'toTableau' : 'toFoundation',
+    from: FROM_CODES[(code >> 1) & 3],
+    card: (code >> 3) & 63,
+    col: (code >> 9) & 7,
+    to: (code >> 12) & 7,
+    reserve: (code >> 15) & 31,
+    pointer: (code >> 20) & 31,
+    onto: ((code >> 25) & 63) - 1,
+    cost: 0, // not needed once a step is stored: g carries it
+  };
+}
+
 /**
  * Turns search steps into game moves by replaying them through the engine. Steps are matched by
  * card, not column: a position stands for every arrangement of its bare columns, so the column
@@ -404,50 +471,50 @@ export interface KlondikeSolveResult extends SolveResult<KlondikeSolverMove> {
   bestHome: number;
 }
 
+/** Growable Int32 column for the open list. */
+class IntColumn {
+  data = new Int32Array(1 << 16);
+  length = 0;
+  push(v: number): number {
+    if (this.length === this.data.length) {
+      const next = new Int32Array(this.data.length * 2);
+      next.set(this.data);
+      this.data = next;
+    }
+    this.data[this.length] = v;
+    return this.length++;
+  }
+}
+
 export function solveKlondike(state: KlondikeState, options: KlondikeSolveOptions = {}): KlondikeSolveResult {
   const maxNodes = options.maxNodes ?? DEFAULT_KLONDIKE_MAX_NODES;
   const maxLength = options.maxLength ?? Infinity;
   const weight = options.weight ?? 1;
   const deal = packKlondike(state);
 
+  // Expanded positions are kept in full. Positions still waiting are just (parent, step, g):
+  // most are never expanded, and they're rebuilt from the parent when they are.
   const nodePos: KPos[] = [];
   const nodeG: number[] = [];
   const nodeParent: number[] = [];
-  const nodeStep: (KStep | null)[] = [];
-  const closed: boolean[] = [];
-  const index = new Map<string, number>();
+  const nodeStep: number[] = [];
+  const expandedIndex = new Map<string, number>();
+  const openParent = new IntColumn();
+  const openStep = new IntColumn();
+  const openG = new IntColumn();
   const buckets: number[][] = [];
   let lowestBucket = 0;
   let bestHome = cardsHome(deal.start);
 
-  const push = (p: KPos, g: number, parent: number, step: KStep | null) => {
-    if (g > maxLength) return;
-    const key = positionKey(p);
-    let n = index.get(key);
-    if (n !== undefined && nodeG[n] <= g) return;
-    if (n === undefined) {
-      n = nodeG.length;
-      index.set(key, n);
-      nodePos.push(p);
-      nodeG.push(g);
-      nodeParent.push(parent);
-      nodeStep.push(step);
-      closed.push(false);
-    } else {
-      // A shorter way to a known position (the heuristic isn't consistent): search it again.
-      nodeG[n] = g;
-      nodeParent[n] = parent;
-      nodeStep[n] = step;
-      closed[n] = false;
-    }
-    const h = klondikeHeuristic(deal, p);
-    if (g + h > maxLength) return;
-    const f = Math.floor(g + weight * h);
-    (buckets[f] ??= []).push(n);
+  const enqueue = (parent: number, step: number, g: number, f: number) => {
+    const e = openParent.push(parent);
+    openStep.push(step);
+    openG.push(g);
+    (buckets[f] ??= []).push(e);
     if (f < lowestBucket) lowestBucket = f;
   };
+  enqueue(-1, 0, 0, Math.floor(weight * klondikeHeuristic(deal, deal.start)));
 
-  push(deal.start, 0, -1, null);
   let expanded = 0;
   while (lowestBucket < buckets.length) {
     const bucket = buckets[lowestBucket];
@@ -455,24 +522,95 @@ export function solveKlondike(state: KlondikeState, options: KlondikeSolveOption
       lowestBucket++;
       continue;
     }
-    const n = bucket.pop()!;
-    if (closed[n]) continue;
-    closed[n] = true;
-    const p = nodePos[n];
+    const e = bucket.pop()!;
+    const parent = openParent.data[e];
+    const code = openStep.data[e];
+    const g = openG.data[e];
+    let p = parent < 0 ? deal.start : applyStep(deal, nodePos[parent], unpackStep(code));
+    const key = positionKey(p);
+    let n = expandedIndex.get(key);
+    if (n !== undefined && nodeG[n] <= g) continue;
+    if (n === undefined) {
+      n = nodeG.length;
+      expandedIndex.set(key, n);
+      nodePos.push(p);
+      nodeG.push(g);
+      nodeParent.push(parent);
+      nodeStep.push(code);
+    } else {
+      // A shorter way to an expanded position (the heuristic isn't consistent): expand it again.
+      // Keep the stored layout: queued steps from it name its column numbers.
+      p = nodePos[n];
+      nodeG[n] = g;
+      nodeParent[n] = parent;
+      nodeStep[n] = code;
+    }
+
     const home = cardsHome(p);
     if (home > bestHome) bestHome = home;
     if (home === 52) {
       return { status: 'solved', moves: rebuild(n), exact: weight === 1, nodes: expanded, bestHome: 52 };
     }
     if (++expanded > maxNodes) return { status: 'budget', moves: [], exact: false, nodes: expanded, bestHome };
-    const g = nodeG[n];
-    for (const step of listSteps(deal, p)) push(applyStep(deal, p, step), g + step.cost, n, step);
+    for (const step of listSteps(deal, p)) {
+      const childG = g + step.cost;
+      if (childG > maxLength) continue;
+      const child = applyStep(deal, p, step);
+      const h = klondikeHeuristic(deal, child);
+      if (childG + h > maxLength) continue;
+      enqueue(n, packStep(step), childG, Math.floor(childG + weight * h));
+    }
   }
   return { status: 'unsolvable', moves: [], exact: weight === 1, nodes: expanded, bestHome };
 
   function rebuild(goal: number): KlondikeSolverMove[] {
     const steps: KStep[] = [];
-    for (let n = goal; nodeParent[n] !== -1; n = nodeParent[n]) steps.push(nodeStep[n]!);
+    for (let n = goal; nodeParent[n] !== -1; n = nodeParent[n]) steps.push(unpackStep(nodeStep[n]));
     return toEngineMoves(state, steps.reverse());
   }
+}
+
+/** Heuristic weights for the passes of `findKlondikeLine`, heaviest (fastest) first. */
+const LINE_PASS_WEIGHTS = [5, 3, 2, 1.5, 1.25, 1];
+
+export interface KlondikeLineResult {
+  /** 'solved' when some pass found a win; 'unsolvable' when the first pass searched everything. */
+  status: KlondikeSolveResult['status'];
+  /** The shortest winning line found, or empty. */
+  moves: KlondikeSolverMove[];
+  /** True when the unweighted pass showed no shorter line exists (within the solver's moves). */
+  exact: boolean;
+  nodes: number;
+  bestHome: number;
+}
+
+/**
+ * The best winning line the solver can find within `nodesPerPass` per pass. Each pass after the
+ * first only looks for lines shorter than the best so far, which also makes it faster.
+ */
+export function findKlondikeLine(state: KlondikeState, nodesPerPass = DEFAULT_KLONDIKE_MAX_NODES): KlondikeLineResult {
+  let best: KlondikeSolverMove[] | null = null;
+  let exact = false;
+  let nodes = 0;
+  let bestHome = 0;
+  for (const weight of LINE_PASS_WEIGHTS) {
+    const result = solveKlondike(state, {
+      weight,
+      maxNodes: nodesPerPass,
+      maxLength: best ? best.length - 1 : Infinity,
+    });
+    nodes += result.nodes;
+    bestHome = Math.max(bestHome, result.bestHome);
+    if (result.status === 'solved') {
+      best = result.moves;
+      if (weight === 1) exact = true;
+    } else if (result.status === 'unsolvable') {
+      if (!best) return { status: 'unsolvable', moves: [], exact: false, nodes, bestHome };
+      // Nothing shorter at this weight. Weighted passes can miss lines; the unweighted one can't.
+      if (weight === 1) exact = true;
+    }
+  }
+  return best
+    ? { status: 'solved', moves: best, exact, nodes, bestHome: 52 }
+    : { status: 'budget', moves: [], exact: false, nodes, bestHome };
 }

@@ -2,6 +2,7 @@
 import { solvePyramid } from '../engines/solvers/pyramidSolver';
 import { buildPyramidTierLines } from '../engines/trainer/lineBuilder';
 import { findWinnablePyramidDeal } from '../engines/dealFinder';
+import { findKlondikeLine } from '../engines/solvers/klondikeSolver';
 import type { SolverRequest, SolverResponse } from '../services/solverClient';
 
 // Runs solver searches off the main thread so the board stays responsive.
@@ -12,6 +13,10 @@ scope.onmessage = (e: MessageEvent<SolverRequest>) => {
   const request = e.data;
   if (request.kind === 'solve') {
     reply({ id: request.id, type: 'solved', result: solvePyramid(request.state, { maxNodes: request.maxNodes }) });
+    return;
+  }
+  if (request.kind === 'klondikeLine') {
+    reply({ id: request.id, type: 'klondikeLine', result: findKlondikeLine(request.state) });
     return;
   }
   if (request.kind === 'findDeal') {

@@ -1,17 +1,46 @@
-# Klondike Solver & Trainer — Implementation Plan `[Planned]`
+# Klondike Solver & Trainer — Implementation Plan `[In Progress]`
 
 Bring the Trainer (roadmap 3.4) to Klondike Turn 1 and Turn 3, and make random dealing the default in every game.
 
 ## Decisions
 
 - **Deals are random by default, like a real deck.** Some deals can't be won, and that's part of the game. "Winnable deals only" stays available as an option in the seed picker, **off by default**, for Pyramid now and for Klondike once its solver can check deals. The Daily Challenge stays checked as winnable, because everyone plays the same deal.
-- **Par comes from the solver only when it finds a win.** Otherwise Par is the estimate (`~Par`), with a plain note: *"Estimated Par. There's no guarantee this deal can be won."* The note is the same whether the solver proved the deal unwinnable or ran out of time, so the header doesn't give away an unwinnable deal.
+- **Klondike Par is always an estimate** (`~Par`), with a plain note: *"Estimated Par. There's no guarantee this deal can be won."*
+  - It's the length of the best winning line the solver finds, or the old heuristic when it finds none.
+  - The note is the same either way, so the header doesn't give away an unwinnable deal.
+  - No Ace is awarded, since the solver's line isn't proven shortest. Matching the bot is Par; beating it is Birdie or Eagle.
 - **Ratings:**
   - Klondike Turn 1 keeps the golf-exact ladder (1-move bands).
   - Klondike Turn 3 gets wider bands like Pyramid. In Turn 3, one missed play can cost a whole stock pass, and the solver's line is fuzzier. The slack and band width come from the Phase 0 numbers.
 - **The Trainer shows hidden cards face-down**, as the player sees them, with the footnote "The bot knows where every card is."
 - **The bot can fail.** A deal may be unwinnable, or the solver may run out of its search budget. Either way, the Trainer still plays its **best attempt** and says honestly why it stopped. It never claims a deal is unwinnable unless the solver proved it.
 - **It teaches principles, not just lines.** Moves are tagged with the standard Klondike rules of thumb they follow, and slips name the rule they broke.
+
+## Phase 0 results (benchmark)
+
+100 medium deals each, Node, 150k nodes per pass. Every solved line replayed legally through the engine to a win.
+
+| | Turn 1 | Turn 3 |
+|---|---|---|
+| Won | 83 | 76 |
+| No line within the solver's moves | 0 | 10 |
+| Out of budget (unknown) | 17 | 14 |
+| First line found, median | 152 moves | 129 moves |
+| Best line after more passes: median (range) | 123 (97–186) | 102 (81–131) |
+| Proven shortest | 3 of 83 | 16 of 76 |
+| Solver line at or under the old heuristic Par (113–118 on every deal) | 26 of 83 | 65 of 76 |
+| Time per deal: median / slowest | 6.5 s / 11.7 s | 2.7 s / 6.6 s |
+
+What it means:
+- **Exact A\* can't finish on a real Klondike deal** in 300k nodes; weighted passes find lines instead.
+- **Turn 1 lines are well above optimal:** extra passes keep cutting about 30 moves. Par stays an estimate (above).
+- **The old heuristic hardly varied** (113–118 for every deal), so Par now comes from the solver's line.
+- **Slip costs can't be measured** against lines that aren't shortest, so the Klondike Trainer changes shape (Phase 3).
+
+Tuning after the benchmark:
+- Positions waiting to be explored are stored as (parent, packed step, g) and rebuilt when explored: live memory went from about 590 MB to 120 MB.
+- Deduping only at expansion made the search about 1.5× faster than the benchmarked version, with the same lines.
+- Checked against a plain A\* over every legal engine move on 13-card end-games: same shortest length on all six.
 
 ## Where things stand (review of the Pyramid Trainer)
 
@@ -80,6 +109,9 @@ Prototype the solver and run it on about 100 fixed seeds each for Turn 1 and Tur
   - keep `npm test` near 10 s
 
 ### Phase 3 — Generic Trainer, then Klondike
+
+**Changed after Phase 0:** Klondike has no proven-shortest line to build Ace-to-Bogey bots from. The Klondike Trainer shows **the bot's best line**, narrated with rules of thumb. Its slips are common mistakes, each costed against the bot's line ("this cost 6 moves compared to the bot's line"). Pyramid keeps its five bots. The generic builder below still applies to both.
+
 
 - **Generic builder:**
   - Extract a `TrainerGame<S, M>` interface: solve, list moves, apply, state key, move text, mode and Bogey cap.

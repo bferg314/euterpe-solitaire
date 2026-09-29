@@ -61,7 +61,7 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 ### 3.2 Theoretical Par & Efficiency Rating `[Implemented]`
 * **Description:** A real solver works out the shortest winning line for each deal in a background worker (the "Ace" line), and Par is set a few moves above it. Wins are rated on the Ace / Eagle / Birdie / Par / Bogey ladder.
 * **Value Proposition:** Recontextualizes Solitaire from an exercise in chance into a precision chess-like puzzle, driving deep replayability on challenging seeds.
-* **Status:** Implemented for Pyramid (exact A* solver: Par = Ace line + max(3, 8%); unwinnable deals fall back to an estimated `~Par`). Klondike still uses an estimated `~Par` until its solver lands (see 3.4). Live header Par, victory badge, stats Ace count and match-history tiers.
+* **Status:** Implemented for Pyramid (exact A* solver: Par = Ace line + max(3, 8%); unwinnable deals fall back to an estimated `~Par`). Klondike always shows an estimated `~Par`: the best winning line its solver finds in the background (it can't prove Klondike lines shortest in a browser's budget), or a heuristic when it finds none. Klondike Turn 1 rates golf-exact; Turn 3 in 3-move bands. Live header Par, victory badge, stats Ace count and match-history tiers.
 
 ### 3.3 Sensory Soundscape Mixer
 * **Description:** A dedicated parlor acoustics panel enabling users to blend bespoke ambient layers (soft vinyl crackle, gentle rain against windowpanes, fireplace embers, tactile card weights) with custom card acoustic profiles (heavy linen snap vs. silk glide).
@@ -70,7 +70,7 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 ### 3.4 Solitaire Trainer `[In Progress]`
 * **Description:** Watch a bot win a deal along a known winning line at five skill levels: Bogey, Par, Birdie, Eagle and Ace. Weaker bots take realistic detours from the Ace line, and each detour is explained with the moves it cost.
 * **Value Proposition:** Shows what efficient play looks like on a real deal, and exactly where sloppy play loses moves.
-* **Status:** Live for Pyramid: exact solver and solver-based Par, a Trainer overlay (header graduation cap, or "Watch the Ace line" after a win) with five bot levels built from the Ace line plus real slips, each slip explained with its cost, playback controls, a scrubber and keyboard control. Pyramid rates in 4-move bands with Par one typical slip (16 moves) above the Ace line, since a Pyramid slip usually costs a whole stock pass; Klondike keeps the golf-exact ladder. Next: the Klondike solver and trainer.
+* **Status:** Live for Pyramid: exact solver and solver-based Par, a Trainer overlay (header graduation cap, or "Watch the Ace line" after a win) with five bot levels built from the Ace line plus real slips, each slip explained with its cost, playback controls, a scrubber and keyboard control. Pyramid rates in 4-move bands with Par one typical slip (16 moves) above the Ace line, since a Pyramid slip usually costs a whole stock pass; Klondike keeps the golf-exact ladder. Klondike solver: done (weighted A* in passes; see `docs/KLONDIKE_TRAINER_PLAN.md` for the benchmark). Next: the Klondike Trainer.
 
 ---
 

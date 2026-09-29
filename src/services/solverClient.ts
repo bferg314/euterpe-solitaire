@@ -1,18 +1,21 @@
-import type { DifficultyLevel, PyramidState } from '../types/solitaire';
+import type { DifficultyLevel, KlondikeState, PyramidState } from '../types/solitaire';
 import type { LoadedDeck } from './deckLoader';
 import { findWinnablePyramidDeal, type FoundDeal } from '../engines/dealFinder';
 import type { PyramidSolverMove, SolveResult, SolveStatus } from '../engines/solvers/types';
 import type { TierLine } from '../engines/trainer/lineBuilder';
 import { solvePyramid } from '../engines/solvers/pyramidSolver';
 import { buildPyramidTierLines } from '../engines/trainer/lineBuilder';
+import { findKlondikeLine, type KlondikeLineResult } from '../engines/solvers/klondikeSolver';
 
 export type SolverRequest =
   | { id: number; kind: 'solve'; state: PyramidState; maxNodes?: number }
+  | { id: number; kind: 'klondikeLine'; state: KlondikeState }
   | { id: number; kind: 'tierLines'; state: PyramidState; seed: string }
   | { id: number; kind: 'findDeal'; deck: LoadedDeck; difficulty: DifficultyLevel; seeds?: string[] };
 
 export type SolverResponse =
   | { id: number; type: 'solved'; result: SolveResult<PyramidSolverMove> }
+  | { id: number; type: 'klondikeLine'; result: KlondikeLineResult }
   | { id: number; type: 'line'; line: TierLine; ace: number; par: number }
   | { id: number; type: 'done'; status: SolveStatus; ace: number; par: number }
   | { id: number; type: 'deal'; found: FoundDeal | null };
@@ -77,6 +80,16 @@ export function solvePyramidAsync(
   if (!workersAvailable()) return Promise.resolve(solvePyramid(state, { maxNodes: options.maxNodes }));
   return send(options.channel ?? 'default', { kind: 'solve', state, maxNodes: options.maxNodes }, (msg, resolve) => {
     if (msg.type !== 'solved') return false;
+    resolve(msg.result);
+    return true;
+  });
+}
+
+/** The best winning line the Klondike solver can find (see `findKlondikeLine`). */
+export function findKlondikeLineAsync(state: KlondikeState, options: { channel?: string } = {}): Promise<KlondikeLineResult | null> {
+  if (!workersAvailable()) return Promise.resolve(findKlondikeLine(state));
+  return send(options.channel ?? 'default', { kind: 'klondikeLine', state }, (msg, resolve) => {
+    if (msg.type !== 'klondikeLine') return false;
     resolve(msg.result);
     return true;
   });
