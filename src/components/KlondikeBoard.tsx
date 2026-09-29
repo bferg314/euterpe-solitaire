@@ -505,6 +505,16 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
     setAnnouncement(handleCardClick(card) ? `Played ${cardName(card)}` : `No move for ${cardName(card)}`);
   };
 
+  // Rings a column's whole face-up run, or just its top card if the run is already ringed, ready
+  // for Space to pick it up or Enter to play it.
+  const toggleWholeRun = (col: number) => {
+    const cards = state.tableau[col];
+    const firstFaceUp = cards.findIndex((c) => c.faceUp);
+    if (firstFaceUp < 0) return;
+    const wholeRun = cursor.zone === 'tableau' && cursor.col === col && cursor.index === firstFaceUp;
+    moveCursorTo({ zone: 'tableau', col, index: wholeRun ? cards.length - 1 : firstFaceUp });
+  };
+
   const handleKey = (e: KeyboardEvent): boolean => {
     const busy = isFlyingRef.current;
     switch (e.key) {
@@ -556,17 +566,9 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
         if (!busy) sendToFoundation();
         return true;
       case 'a':
-      case 'A': {
-        // Select the column's whole face-up run (press again for just the top card), ready for
-        // Space to pick it up or Enter to play it.
-        if (held || cursor.zone !== 'tableau') return true;
-        const cards = state.tableau[cursor.col];
-        const firstFaceUp = cards.findIndex((c) => c.faceUp);
-        if (firstFaceUp < 0) return true;
-        const wholeRun = cursor.index === firstFaceUp;
-        moveCursorTo({ ...cursor, index: wholeRun ? cards.length - 1 : firstFaceUp });
+      case 'A':
+        if (!held && cursor.zone === 'tableau') toggleWholeRun(cursor.col);
         return true;
-      }
       case 'Escape':
         if (!held) return false;
         setHeld(null);
@@ -575,6 +577,11 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       default:
         if (/^[1-7]$/.test(e.key)) {
           const col = Number(e.key) - 1;
+          // Pressing the number of the column you're already in works like A.
+          if (!held && cursor.zone === 'tableau' && cursor.col === col) {
+            toggleWholeRun(col);
+            return true;
+          }
           moveCursorTo({ zone: 'tableau', col, index: TOP_OF_COLUMN });
           if (held && !busy) dropOn({ pile: 'tableau', col });
           return true;

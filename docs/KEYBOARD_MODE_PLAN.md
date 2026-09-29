@@ -26,7 +26,7 @@ Play every game (Klondike Turn 1, Klondike Turn 3, Pyramid) without a mouse.
 | `Space` | **Pick up** the cards at the cursor. Press again on a pile to **drop** them there. An invalid drop plays the error bump and keeps the cards held |
 | `Enter` | **Smart move**: same as a click (`findSmartDestination`), with the gold flight animation |
 | `1`–`7` | Jump to a tableau column (drops there if holding cards) |
-| `A` | Select the whole face-up run in the column (press again for just the top card) |
+| `A` | Select the whole face-up run in the column (press again for just the top card). Pressing the column's number again does the same |
 | `F` | Send the card at the cursor to a foundation, if legal |
 | `D` | Draw from stock (or recycle waste when stock is empty) |
 | `W` | Jump to the waste |
