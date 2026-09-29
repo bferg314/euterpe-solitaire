@@ -100,7 +100,7 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
   // "Find a winnable deal": the same search New Deal uses.
   const findWinnableDeal = async () => {
     setStatus('searching');
-    const found = await findWinnableDealAsync(deck, difficulty === 'daily' ? 'medium' : difficulty);
+    const found = await findWinnableDealAsync(deck, 'pyramid', difficulty === 'daily' ? 'medium' : difficulty);
     if (found) startSession(found.seed);
     else setStatus('unwinnable');
   };

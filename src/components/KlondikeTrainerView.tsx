@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { GraduationCap, X, AlertTriangle, Loader2, Lightbulb, Eye, Undo2 } from 'lucide-react';
+import { GraduationCap, X, AlertTriangle, Loader2, Lightbulb, Eye, Undo2, Shuffle } from 'lucide-react';
 import type { DifficultyLevel, KlondikeState } from '../types/solitaire';
 import type { LoadedDeck } from '../services/deckLoader';
 import type { KlondikeLineResult } from '../engines/solvers/klondikeSolver';
@@ -11,7 +11,7 @@ import {
   klondikePrinciple,
   type KlondikeSlip,
 } from '../engines/trainer/klondikeTrainer';
-import { buildKlondikeTrainerAsync, cancelTrainerWork } from '../services/solverClient';
+import { buildKlondikeTrainerAsync, cancelTrainerWork, findWinnableDealAsync } from '../services/solverClient';
 import { getCachedParInfo, getKnownKlondikeLine } from '../services/parService';
 import { formatParDelta } from '../utils/efficiencyRating';
 import { KlondikeBoard } from './KlondikeBoard';
@@ -34,22 +34,28 @@ const noop = () => {};
  * If the bot finds no win, it plays its best attempt instead.
  */
 export const KlondikeTrainerView: React.FC<KlondikeTrainerViewProps> = ({ deck, seed, difficulty, gameMode, onClose }) => {
-  const deal = useMemo(() => dealKlondike(deck, seed, gameMode === 'klondike-3' ? 3 : 1, difficulty), [deck, seed, gameMode, difficulty]);
+  // The deal on show: the game's, or one found with "Find a winnable deal".
+  const [dealSeed, setDealSeed] = useState(seed);
+  const [searching, setSearching] = useState(false);
+  const deal = useMemo(
+    () => dealKlondike(deck, dealSeed, gameMode === 'klondike-3' ? 3 : 1, difficulty),
+    [deck, dealSeed, gameMode, difficulty]
+  );
   const [result, setResult] = useState<KlondikeLineResult | null>(null);
   const [slips, setSlips] = useState<KlondikeSlip[]>([]);
   const [slipsDone, setSlipsDone] = useState(false);
   // The slip being watched, or null for the bot's own line.
   const [watching, setWatching] = useState<KlondikeSlip | null>(null);
-  const par = getCachedParInfo(gameMode, difficulty, seed)?.par ?? 0;
+  const par = getCachedParInfo(gameMode, difficulty, dealSeed)?.par ?? 0;
 
   useEffect(() => {
-    buildKlondikeTrainerAsync(deal, getKnownKlondikeLine(gameMode, difficulty, seed), setResult, (slip) =>
+    buildKlondikeTrainerAsync(deal, getKnownKlondikeLine(gameMode, difficulty, dealSeed), setResult, (slip) =>
       setSlips((prev) => [...prev, slip])
     ).then((done) => {
       if (done) setSlipsDone(true);
     });
     return cancelTrainerWork;
-  }, [deal, gameMode, difficulty, seed]);
+  }, [deal, gameMode, difficulty, dealSeed]);
 
   const won = result?.status === 'solved';
   const botLine = useMemo(() => (result ? (won ? result.moves : result.bestMoves) : []), [result, won]);
@@ -77,6 +83,21 @@ export const KlondikeTrainerView: React.FC<KlondikeTrainerViewProps> = ({ deck, 
   const lessonHere = watching && at === watching.at + 1 ? watching.lesson : null;
   const home = current.foundations.reduce((n, pile) => n + pile.length, 0);
 
+  // "Find a winnable deal": the same search New Deal uses when winnable-only is on.
+  const findWinnable = async () => {
+    setSearching(true);
+    const found = await findWinnableDealAsync(deck, gameMode, difficulty === 'daily' ? 'medium' : difficulty);
+    setSearching(false);
+    if (!found) return;
+    setResult(null);
+    setSlips([]);
+    setSlipsDone(false);
+    setWatching(null);
+    setPlaying(false);
+    setIndex(0);
+    setDealSeed(found.seed);
+  };
+
   const watch = (slip: KlondikeSlip | null) => {
     setWatching(slip);
     setPlaying(false);
@@ -100,7 +121,7 @@ export const KlondikeTrainerView: React.FC<KlondikeTrainerViewProps> = ({ deck, 
           <div>
             <h3>Trainer</h3>
             <span className="trainer-subtitle">
-              {modeName} · {seed}
+              {modeName} · {dealSeed}
               {par > 0 && ` · ~Par ${par}`}
             </span>
           </div>
@@ -146,6 +167,9 @@ export const KlondikeTrainerView: React.FC<KlondikeTrainerViewProps> = ({ deck, 
                     : "The bot didn't find a win in its search, so this deal may still be winnable."}
                   {result.bestHome > 0 ? " Here's how far it got." : " It couldn't get a single card home."}
                 </span>
+                <button className="subtle-btn trainer-watch-btn" onClick={findWinnable} disabled={searching}>
+                  <Shuffle size={14} /> {searching ? 'Looking…' : 'Find a winnable deal'}
+                </button>
               </div>
             )}
             <div className="trainer-progress-line">

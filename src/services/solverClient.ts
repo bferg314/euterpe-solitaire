@@ -1,6 +1,6 @@
-import type { DifficultyLevel, KlondikeState, PyramidState } from '../types/solitaire';
+import type { DifficultyLevel, GameMode, KlondikeState, PyramidState } from '../types/solitaire';
 import type { LoadedDeck } from './deckLoader';
-import { findWinnablePyramidDeal, type FoundDeal } from '../engines/dealFinder';
+import { findWinnableDeal, type FoundDeal } from '../engines/dealFinder';
 import type { KlondikeSolverMove, PyramidSolverMove, SolveResult, SolveStatus } from '../engines/solvers/types';
 import type { TierLine } from '../engines/trainer/lineBuilder';
 import { solvePyramid } from '../engines/solvers/pyramidSolver';
@@ -12,7 +12,7 @@ export type SolverRequest =
   | { id: number; kind: 'klondikeLine'; state: KlondikeState }
   | { id: number; kind: 'tierLines'; state: PyramidState; seed: string }
   | { id: number; kind: 'klondikeTrainer'; state: KlondikeState; line: KlondikeSolverMove[] | null }
-  | { id: number; kind: 'findDeal'; deck: LoadedDeck; difficulty: DifficultyLevel; seeds?: string[] };
+  | { id: number; kind: 'findDeal'; deck: LoadedDeck; mode: GameMode; difficulty: DifficultyLevel; seeds?: string[] };
 
 export type SolverResponse =
   | { id: number; type: 'solved'; result: SolveResult<PyramidSolverMove> }
@@ -170,16 +170,17 @@ export function cancelTrainerWork(): void {
 }
 
 /**
- * Finds a winnable Pyramid deal in the worker (see `findWinnablePyramidDeal`). Runs on its own
+ * Finds a winnable deal for a game in the worker (see `findWinnableDeal`). Runs on its own
  * channel, so it never interrupts par solving or the Trainer.
  */
 export function findWinnableDealAsync(
   deck: LoadedDeck,
+  mode: GameMode,
   difficulty: DifficultyLevel,
   seeds?: string[]
 ): Promise<FoundDeal | null> {
-  if (!workersAvailable()) return Promise.resolve(findWinnablePyramidDeal(deck, difficulty, seeds));
-  return send<FoundDeal | null>('deal', { kind: 'findDeal', deck, difficulty, seeds }, (msg, resolve) => {
+  if (!workersAvailable()) return Promise.resolve(findWinnableDeal(deck, mode, difficulty, seeds));
+  return send<FoundDeal | null>('deal', { kind: 'findDeal', deck, mode, difficulty, seeds }, (msg, resolve) => {
     if (msg.type !== 'deal') return false;
     resolve(msg.found);
     return true;

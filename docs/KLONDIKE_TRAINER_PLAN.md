@@ -125,8 +125,19 @@ What was built:
   - `KlondikeBoard` got `interactive` and `highlightCardIds`.
   - Both Trainer views load lazily, which keeps the main bundle under 500 kB.
 
-### Phase 4 — Winnable-only Klondike (optional)
+### Phase 4 — Winnable-only Klondike `[Done]`
 
-- Generalize `dealFinder` so the toggle (off by default) works for Klondike too.
-- Base difficulty on each deal's Ace line where the numbers support it.
-- Make the Klondike Daily Challenge checked winnable, with a fixed node budget so it's the same deal on every machine.
+Measured first: the solver's fast first pass (weight 5) on 40 deals per difficulty, Turn 1 and Turn 3.
+
+| | Won (of 40) | Proven no win | Out of budget | First line, median | Time when won: median / max | Time when not: median |
+|---|---|---|---|---|---|---|
+| Turn 1 Easy / Medium / Hard | 30 / 27 / 28 | 1 / 0 / 0 | 9 / 13 / 12 | 155 / 151 / 161 | ~22 ms / 720 ms | 0.9 s |
+| Turn 3 Easy / Medium / Hard | 34 / 29 / 26 | 2 / 3 / 4 | 4 / 8 / 10 | 121 / 126 / 127 | ~4 ms / 888 ms | 0.8 s |
+
+- **Budget:** a 40k-node cap keeps 166 of the 174 wins a 150k cap finds, and a deal it can't settle costs about 0.25 s instead of 0.9 s. It's fixed, so the Daily walk is the same on every machine.
+- **Difficulty stays with the dealing.** First-line lengths barely differ between Easy, Medium and Hard and are noisy, so they can't band deals the way Pyramid's exact lines do. The check only filters.
+- **Built:**
+  - `findWinnableKlondikeDeal` and `findWinnableDeal` (for any game), run in the worker.
+  - The seed-picker toggle now covers Klondike, and the Klondike Daily walks to its first winnable deal.
+  - "Find a winnable deal" in the Klondike Trainer's best attempt.
+- **In the browser:** New Deal with the toggle on takes about 50 ms, since the next deal is prefetched. Today's Turn 3 Daily walked to `-2`, matching the Node run.
