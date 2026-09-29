@@ -22,7 +22,6 @@ const DEFAULT_STATS: GameStats = {
   totalTimeSeconds: 0,
   fewestMoves: null,
   highScore: 0,
-  averageEfficiency: 100,
   acesCount: 0,
   eaglesCount: 0,
   birdiesCount: 0,
@@ -60,12 +59,13 @@ export function recordGameResult(
     const current = db[key] ? { ...DEFAULT_STATS, ...db[key] } : { ...DEFAULT_STATS };
 
     current.gamesPlayed += 1;
-    current.totalTimeSeconds += timeSeconds;
 
     let ratingTier: string | undefined;
 
     if (won) {
       current.gamesWon += 1;
+      // Only wins count toward the average time.
+      current.totalTimeSeconds += timeSeconds;
       current.currentStreak += 1;
       if (current.currentStreak > current.longestStreak) {
         current.longestStreak = current.currentStreak;
@@ -87,6 +87,7 @@ export function recordGameResult(
 
       // Record Par efficiency metrics
       if (par && par > 0) {
+        const previouslyRated = ratedWins(current);
         const eff = calculateEfficiency(moves, par, ace, mode);
         ratingTier = eff.tier;
         if (eff.tier === 'ace') {
@@ -101,8 +102,9 @@ export function recordGameResult(
           current.bogeysCount = (current.bogeysCount || 0) + 1;
         }
 
-        const prevTotalEff = (current.averageEfficiency || 100) * (current.gamesWon - 1);
-        current.averageEfficiency = Math.round((prevTotalEff + eff.efficiencyPct) / current.gamesWon);
+        // Average over wins that had a Par only: a win without one says nothing about efficiency.
+        const prevTotalEff = previouslyRated > 0 ? (current.averageEfficiency ?? 0) * previouslyRated : 0;
+        current.averageEfficiency = Math.round((prevTotalEff + eff.efficiencyPct) / (previouslyRated + 1));
       }
     } else {
       current.currentStreak = 0;
@@ -129,6 +131,17 @@ export function recordGameResult(
   } catch (e) {
     console.error('Failed to save stats:', e);
   }
+}
+
+/** Wins that had a Par, and so a rating tier. */
+export function ratedWins(stats: GameStats): number {
+  return (
+    (stats.acesCount || 0) +
+    (stats.eaglesCount || 0) +
+    (stats.birdiesCount || 0) +
+    (stats.parsCount || 0) +
+    (stats.bogeysCount || 0)
+  );
 }
 
 function appendMatchHistory(entry: MatchHistoryEntry): void {
@@ -192,14 +205,32 @@ export function exportStatsJson(): string {
   return JSON.stringify(data, null, 2);
 }
 
-export function importStatsJson(jsonStr: string): boolean {
+export interface ImportResult {
+  ok: boolean;
+  /** Matches in the backup's history. */
+  matches: number;
+}
+
+/** Restores a backup from `exportStatsJson`. Nothing is written unless the whole file checks out. */
+export function importStatsJson(jsonStr: string): ImportResult {
+  const failed = { ok: false, matches: 0 };
   try {
     const parsed = JSON.parse(jsonStr);
-    if (parsed.stats) localStorage.setItem(STATS_STORAGE_KEY, parsed.stats);
-    if (parsed.history) localStorage.setItem(HISTORY_STORAGE_KEY, parsed.history);
-    if (parsed.dailyWins) localStorage.setItem(DAILY_WINS_KEY, parsed.dailyWins);
-    return true;
+    if (!parsed || typeof parsed !== 'object') return failed;
+    const parts = [
+      [STATS_STORAGE_KEY, parsed.stats, (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v)],
+      [HISTORY_STORAGE_KEY, parsed.history, Array.isArray],
+      [DAILY_WINS_KEY, parsed.dailyWins, Array.isArray],
+    ] as const;
+    const present = parts.filter(([, raw]) => raw !== undefined && raw !== null);
+    if (present.length === 0) return failed;
+    for (const [, raw, isValid] of present) {
+      if (typeof raw !== 'string' || !isValid(JSON.parse(raw))) return failed;
+    }
+    for (const [key, raw] of present) localStorage.setItem(key, raw as string);
+    const matches = typeof parsed.history === 'string' ? (JSON.parse(parsed.history) as unknown[]).length : 0;
+    return { ok: true, matches };
   } catch {
-    return false;
+    return failed;
   }
 }

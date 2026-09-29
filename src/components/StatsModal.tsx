@@ -7,6 +7,7 @@ import {
   resetAllStats,
   exportStatsJson,
   importStatsJson,
+  ratedWins,
 } from '../services/statsService';
 import {
   Trophy,
@@ -65,11 +66,12 @@ export const StatsModal: React.FC<StatsModalProps> = ({ currentMode, onReplaySee
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      if (importStatsJson(content)) {
-        alert('Statistics successfully restored!');
+      const result = importStatsJson(content);
+      if (result.ok) {
+        alert(`Statistics restored (${result.matches} ${result.matches === 1 ? 'match' : 'matches'}).`);
         setHistory(getMatchHistory());
       } else {
-        alert('Failed to parse stats JSON file.');
+        alert("That file isn't a Euterpe stats backup. Nothing was changed.");
       }
     };
     reader.readAsText(file);
@@ -144,7 +146,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({ currentMode, onReplaySee
           <div className="stat-card">
             <span className="stat-label">PAR EFFICIENCY</span>
             <span className="stat-number">
-              {stats.averageEfficiency ? `${stats.averageEfficiency}%` : '100%'}
+              {ratedWins(stats) > 0 && stats.averageEfficiency !== undefined ? `${stats.averageEfficiency}%` : '--'}
             </span>
             <span className="stat-subtext" title="Ace, Eagle, Birdie and Par solves">
               ♠ {stats.acesCount || 0} · 🦅 {stats.eaglesCount || 0} · 🐦 {stats.birdiesCount || 0} · ⛳ {stats.parsCount || 0}
