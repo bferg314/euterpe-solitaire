@@ -2,8 +2,8 @@ import type { GameMode, DifficultyLevel, KlondikeState, PyramidState } from '../
 import type { CachedParRecord, ParInfo } from '../types/par';
 import { estimateKlondikePar } from '../engines/solvers/klondikeSolver';
 import { estimatePyramidPar } from '../engines/solvers/pyramidSolver';
-import { parFromAce } from '../utils/efficiencyRating';
-import { solvePyramidAsync } from './solverClient';
+import { parFromAce, parFromSolverLine } from '../utils/efficiencyRating';
+import { findKlondikeLineAsync, solvePyramidAsync } from './solverClient';
 
 // v2: Par comes from solved lines. v1 held heuristic estimates and is ignored.
 const PAR_CACHE_KEY = 'euterpe_solitaire_par_cache_v2';
@@ -42,6 +42,7 @@ export function getCachedParInfo(mode: GameMode, difficulty: DifficultyLevel, se
   // Par is derived from the stored Ace line, so a change to the par formula applies to cached deals too.
   const ace = record.ace ?? null;
   if (record.isExact && ace != null) return { par: parFromAce(ace, mode), ace, isExact: true, winnable: true };
+  if (record.line != null) return { par: parFromSolverLine(record.line), ace: null, isExact: false, winnable: true, line: record.line };
   return { par: record.par, ace, isExact: record.isExact, winnable: record.winnable ?? null };
 }
 
@@ -66,9 +67,12 @@ export function estimateParInfo(
 }
 
 /**
- * Par for a deal from its initial layout. Pyramid deals are solved exactly in the solver
- * worker; Klondike uses the heuristic estimate until its solver lands. Results are cached,
- * so each deal is only solved once. Resolves null if a newer request superseded this one.
+ * Par for a deal from its initial layout, worked out in the solver worker and cached, so each
+ * deal is only solved once. Resolves null if a newer request superseded this one.
+ * - Pyramid: exact, from the shortest line; estimated if the solver finds no line.
+ * - Klondike: always an estimate, from the best line the solver finds (it can't prove lines
+ *   shortest in time), or the heuristic if it finds none. It never calls a Klondike deal
+ *   unwinnable: its search skips some rarely useful moves, so "no line" isn't proof.
  */
 export async function computeParInfo(
   mode: GameMode,
@@ -80,9 +84,18 @@ export async function computeParInfo(
   const cached = getCachedParInfo(mode, difficulty, seed);
   if (cached) return cached;
 
-  if (mode !== 'pyramid' || !initialPyramid) {
-    return estimateParInfo(mode, difficulty, initialKlondike, initialPyramid);
+  if (mode !== 'pyramid') {
+    if (!initialKlondike) return estimateParInfo(mode, difficulty, null, null);
+    const line = await findKlondikeLineAsync(initialKlondike, { channel: 'par' });
+    if (!line) return null;
+    const info: ParInfo =
+      line.status === 'solved'
+        ? { par: parFromSolverLine(line.moves.length), ace: null, isExact: false, winnable: true, line: line.moves.length }
+        : estimateParInfo(mode, difficulty, initialKlondike, null);
+    writeCacheRecord(getCacheKey(mode, difficulty, seed), info);
+    return info;
   }
+  if (!initialPyramid) return estimateParInfo(mode, difficulty, null, null);
 
   const result = await solvePyramidAsync(initialPyramid, { channel: 'par' });
   if (!result) return null;

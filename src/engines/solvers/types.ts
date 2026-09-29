@@ -1,3 +1,5 @@
+import type { KlondikeMoveSource, KlondikeMoveTarget } from '../klondikeEngine';
+
 /** Where a Pyramid card is taken from: a pyramid position or the top of the waste. */
 export type PyramidCardRef = { from: 'pyramid'; row: number; col: number } | { from: 'waste' };
 
@@ -9,6 +11,15 @@ export type PyramidSolverMove =
   | { type: 'recycle' }
   | { type: 'king'; card: PyramidCardRef }
   | { type: 'pair'; a: PyramidCardRef; b: PyramidCardRef };
+
+/**
+ * One Klondike move, counted exactly as the game counts moves: a draw (1 or 3 cards), a
+ * recycle, or cards moved from one pile to another.
+ */
+export type KlondikeSolverMove =
+  | { type: 'draw' }
+  | { type: 'recycle' }
+  | { type: 'move'; source: KlondikeMoveSource; target: KlondikeMoveTarget };
 
 export type SolveStatus =
   /** A winning line was found. */

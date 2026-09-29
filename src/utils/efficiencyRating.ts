@@ -8,8 +8,10 @@ import type { EfficiencyResult, ParRatingTier } from '../types/par';
  * of `band` moves: Par is the last band up to Par, Birdie the band below it, and Eagle anything
  * lower that still isn't the Ace line.
  *
- * - Klondike: a slip costs a move or two, so the ladder is golf-exact (band 1: Birdie is one
- *   under Par, Eagle two or more).
+ * - Klondike Turn 1: a slip costs a move or two, so the ladder is golf-exact (band 1: Birdie is
+ *   one under Par, Eagle two or more).
+ * - Klondike Turn 3: a missed play can cost a whole pass through the stock, and the solver's
+ *   lines are only estimates, so the bands are 3 moves wide.
  * - Pyramid: missing a pair usually costs a whole pass through the stock (10–20 moves), so Par
  *   sits one typical slip above the Ace line and the bands are 4 moves wide.
  * The slack is always at least 2 bands + 1, so Eagle sits above Ace.
@@ -20,14 +22,25 @@ interface ParLadder {
 }
 
 const KLONDIKE_LADDER: ParLadder = { slack: (ace) => Math.max(3, Math.round(ace * 0.08)), band: 1 };
+const KLONDIKE_3_LADDER: ParLadder = { slack: (ace) => Math.max(7, Math.round(ace * 0.08)), band: 3 };
 const PYRAMID_LADDER: ParLadder = { slack: () => 16, band: 4 };
 
 function ladderFor(mode: GameMode): ParLadder {
-  return mode === 'pyramid' ? PYRAMID_LADDER : KLONDIKE_LADDER;
+  if (mode === 'pyramid') return PYRAMID_LADDER;
+  return mode === 'klondike-3' ? KLONDIKE_3_LADDER : KLONDIKE_LADDER;
 }
 
 export function parFromAce(ace: number, mode: GameMode): number {
   return ace + ladderFor(mode).slack(ace);
+}
+
+/**
+ * Klondike's estimated Par when the solver found a winning line: the length of the best line
+ * it found. That line usually isn't the shortest (see `findKlondikeLine`), so Par stays an
+ * estimate and no Ace is awarded; matching the bot is Par, beating it is Birdie or Eagle.
+ */
+export function parFromSolverLine(line: number): number {
+  return line;
 }
 
 /** The move counts that rate as each tier (Bogey is open-ended above Par). */

@@ -20,6 +20,8 @@ export interface ParInfo {
   isExact: boolean;
   /** Whether the deal can be won: known from a solve, or null when unknown (no solver, or it gave up). */
   winnable: boolean | null;
+  /** Klondike: length of the best winning line the solver found (not proven shortest), if any. */
+  line?: number | null;
 }
 
 export interface CachedParRecord extends ParInfo {

@@ -2,7 +2,15 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import type { GameMode, DifficultyLevel, KlondikeState, PyramidState, ThemeId, SolitaireCard } from './types/solitaire';
 import type { LoadedDeck } from './services/deckLoader';
 import { loadInitialDeck } from './services/deckLoader';
-import { dealKlondike, isKlondikeWon, canAutoFinish, getNextAutoFinishMove, cloneKlondikeState, findAutoMove } from './engines/klondikeEngine';
+import {
+  applyKlondikeMove,
+  dealKlondike,
+  isKlondikeWon,
+  canAutoFinish,
+  getNextAutoFinishMove,
+  cloneKlondikeState,
+  findAutoMove,
+} from './engines/klondikeEngine';
 import { dealPyramid, isPyramidWon, findPyramidHint, clonePyramidState } from './engines/pyramidEngine';
 import { createSeedForDifficulty, getDailyChallengeSeed } from './services/rngService';
 import { dailyCandidates, type FoundDeal } from './engines/dealFinder';
@@ -723,38 +731,34 @@ export const App: React.FC = () => {
     setTimeout(() => setResumeMessage(null), 4000);
   };
 
-  // Auto-Finish step execution
+  // Auto-Finish: sends one card home every 120 ms, each counted as a move, until none can go.
   const handleAutoFinish = () => {
     if (!klondikeState || isAutoFinishing) return;
     setIsAutoFinishing(true);
+  };
 
-    const stepInterval = setInterval(() => {
-      setKlondikeState((current) => {
-        if (!current) {
-          clearInterval(stepInterval);
-          setIsAutoFinishing(false);
-          return null;
-        }
-
-        const move = getNextAutoFinishMove(current);
-        if (!move) {
-          clearInterval(stepInterval);
-          setIsAutoFinishing(false);
-          return current;
-        }
-
-        sound.playCardSnap();
-        const next = cloneKlondikeState(current);
-        const card = next.tableau[move.fromCol].pop();
-        if (card) {
-          next.foundations[move.toFoundation].push(card);
-        }
-        return next;
-      });
+  useEffect(() => {
+    if (!isAutoFinishing || !klondikeState) return;
+    const move = getNextAutoFinishMove(klondikeState);
+    const result =
+      move &&
+      applyKlondikeMove(
+        klondikeState,
+        { pile: 'tableau', col: move.fromCol, index: klondikeState.tableau[move.fromCol].length - 1 },
+        { pile: 'foundation', index: move.toFoundation }
+      );
+    const timer = setTimeout(() => {
+      if (!result) {
+        setIsAutoFinishing(false);
+        return;
+      }
+      sound.playCardSnap();
+      setKlondikeState(result.next);
       setMoves((m) => m + 1);
       setScore((s) => s + 20);
-    }, 120);
-  };
+    }, result ? 120 : 0);
+    return () => clearTimeout(timer);
+  }, [isAutoFinishing, klondikeState]);
 
   // Theme change
   const handleSelectTheme = (newTheme: ThemeId) => {
@@ -1086,7 +1090,7 @@ export const App: React.FC = () => {
             state={displayKlondikeState}
             deck={deck}
             hintCardId={forkPreviewIndex !== null ? null : hintCardId}
-            ambientVacuumEnabled={comfortSettings.ambientVacuumEnabled}
+            ambientVacuumEnabled={comfortSettings.ambientVacuumEnabled && !isAutoFinishing}
             smartTapEnabled={comfortSettings.smartTapEnabled}
             keyboardEnabled={boardKeyboardEnabled}
             onKeyboardActivate={handleKeyboardActivate}

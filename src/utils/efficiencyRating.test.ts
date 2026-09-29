@@ -73,3 +73,11 @@ describe('calculateEfficiency, Pyramid (4-move bands)', () => {
     }
   });
 });
+
+describe('Klondike Turn 3 bands', () => {
+  // Estimated Par (no Ace): 3-move bands, since a missed play can cost a whole stock pass.
+  const tierFor = (moves: number) => calculateEfficiency(moves, 100, null, 'klondike-3').tier;
+  it('rates in 3-move bands below Par', () => {
+    expect([94, 95, 97, 98, 100, 101].map(tierFor)).toEqual(['eagle', 'birdie', 'birdie', 'par', 'par', 'bogey']);
+  });
+});
