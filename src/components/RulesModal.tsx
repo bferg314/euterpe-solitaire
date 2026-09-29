@@ -58,7 +58,7 @@ const TRAINER_KEYS: [string[], string][] = [
   [['Space'], 'Play or pause the bot'],
   [['←', '→'], 'Step back or forward one move'],
   [['Home', 'or', 'End'], 'Jump to the deal or the finish'],
-  [['1', '–', '5'], 'Pick a level: Bogey, Par, Birdie, Eagle, Ace'],
+  [['1', '–', '5'], 'Pyramid: pick a level (Bogey, Par, Birdie, Eagle, Ace)'],
   [['Esc'], 'Close the Trainer'],
 ];
 

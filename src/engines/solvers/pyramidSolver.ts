@@ -178,11 +178,17 @@ export interface PyramidSolveOptions {
    * no line that short exists, which is far quicker than proving the true shortest line.
    */
   maxLength?: number;
+  /**
+   * Keep exploring positions that can no longer be won, for the bot's best attempt on a deal
+   * with no win (the most cards it can clear). The search then never proves anything.
+   */
+  exploreDead?: boolean;
 }
 
 export function solvePyramid(state: PyramidState, options: PyramidSolveOptions = {}): SolveResult<PyramidSolverMove> {
   const maxNodes = options.maxNodes ?? DEFAULT_MAX_NODES;
   const maxLength = options.maxLength ?? Infinity;
+  const exploreDead = options.exploreDead ?? false;
   const deal = packState(state);
   const { pyramidValues: pv, reserveValues: rv } = deal;
   const reserveCount = rv.length;
@@ -234,10 +240,13 @@ export function solvePyramid(state: PyramidState, options: PyramidSolveOptions =
       nodeParent[n] = parent;
       nodeMove[n] = move;
     }
-    const h = heuristic(pyramid, removed, pointer, positionsByValue, rv);
+    let h = heuristic(pyramid, removed, pointer, positionsByValue, rv);
     if (h === DEAD) {
-      closed[n] = true;
-      return;
+      if (!exploreDead) {
+        closed[n] = true;
+        return;
+      }
+      h = popcount(pyramid);
     }
     const f = g + h;
     if (f > maxLength) return;
@@ -248,6 +257,8 @@ export function solvePyramid(state: PyramidState, options: PyramidSolveOptions =
   push(deal.startPyramid, deal.startRemoved, deal.startPointer, 0, -1, -1);
 
   let expanded = 0;
+  let bestNode = 0;
+  let bestLeft = Infinity;
   while (lowestBucket < buckets.length) {
     const bucket = buckets[lowestBucket];
     if (!bucket || bucket.length === 0) {
@@ -263,11 +274,19 @@ export function solvePyramid(state: PyramidState, options: PyramidSolveOptions =
     const pointer = nodePointer[n];
     const g = nodeG[n];
 
+    // The furthest position so far (fewest pyramid cards left, then fewest moves): the bot's
+    // best attempt if there's no win.
+    const left = popcount(pyramid);
+    if (left < bestLeft || (left === bestLeft && g < nodeG[bestNode])) {
+      bestLeft = left;
+      bestNode = n;
+    }
+
     if (pyramid === 0) {
       return { status: 'solved', moves: rebuild(n), exact: true, nodes: expanded };
     }
     if (++expanded > maxNodes) {
-      return { status: 'budget', moves: [], exact: false, nodes: expanded };
+      return { status: 'budget', moves: [], exact: false, nodes: expanded, bestMoves: rebuild(bestNode) };
     }
 
     // Exposed pyramid cards.
@@ -326,7 +345,7 @@ export function solvePyramid(state: PyramidState, options: PyramidSolveOptions =
     }
   }
 
-  return { status: 'unsolvable', moves: [], exact: true, nodes: expanded };
+  return { status: 'unsolvable', moves: [], exact: true, nodes: expanded, bestMoves: rebuild(bestNode) };
 
   function rebuild(goal: number): PyramidSolverMove[] {
     const codes: number[] = [];

@@ -3,6 +3,7 @@ import { solvePyramid } from '../engines/solvers/pyramidSolver';
 import { buildPyramidTierLines } from '../engines/trainer/lineBuilder';
 import { findWinnablePyramidDeal } from '../engines/dealFinder';
 import { findKlondikeLine } from '../engines/solvers/klondikeSolver';
+import { runKlondikeTrainer } from '../engines/trainer/klondikeTrainer';
 import type { SolverRequest, SolverResponse } from '../services/solverClient';
 
 // Runs solver searches off the main thread so the board stays responsive.
@@ -19,6 +20,16 @@ scope.onmessage = (e: MessageEvent<SolverRequest>) => {
     reply({ id: request.id, type: 'klondikeLine', result: findKlondikeLine(request.state) });
     return;
   }
+  if (request.kind === 'klondikeTrainer') {
+    runKlondikeTrainer(
+      request.state,
+      request.line,
+      (result) => reply({ id: request.id, type: 'klondikeLine', result }),
+      (slip) => reply({ id: request.id, type: 'klondikeSlip', slip })
+    );
+    reply({ id: request.id, type: 'klondikeTrainerDone' });
+    return;
+  }
   if (request.kind === 'findDeal') {
     reply({ id: request.id, type: 'deal', found: findWinnablePyramidDeal(request.deck, request.difficulty, request.seeds) });
     return;
@@ -27,5 +38,5 @@ scope.onmessage = (e: MessageEvent<SolverRequest>) => {
   const result = buildPyramidTierLines(request.state, request.seed, (line, ace, par) =>
     reply({ id: request.id, type: 'line', line, ace, par })
   );
-  reply({ id: request.id, type: 'done', status: result.status, ace: result.ace, par: result.par });
+  reply({ id: request.id, type: 'done', status: result.status, ace: result.ace, par: result.par, best: result.best });
 };

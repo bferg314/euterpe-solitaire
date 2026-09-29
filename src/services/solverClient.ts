@@ -1,24 +1,27 @@
 import type { DifficultyLevel, KlondikeState, PyramidState } from '../types/solitaire';
 import type { LoadedDeck } from './deckLoader';
 import { findWinnablePyramidDeal, type FoundDeal } from '../engines/dealFinder';
-import type { PyramidSolverMove, SolveResult, SolveStatus } from '../engines/solvers/types';
+import type { KlondikeSolverMove, PyramidSolverMove, SolveResult, SolveStatus } from '../engines/solvers/types';
 import type { TierLine } from '../engines/trainer/lineBuilder';
 import { solvePyramid } from '../engines/solvers/pyramidSolver';
-import { buildPyramidTierLines } from '../engines/trainer/lineBuilder';
 import { findKlondikeLine, type KlondikeLineResult } from '../engines/solvers/klondikeSolver';
+import type { KlondikeSlip } from '../engines/trainer/klondikeTrainer';
 
 export type SolverRequest =
   | { id: number; kind: 'solve'; state: PyramidState; maxNodes?: number }
   | { id: number; kind: 'klondikeLine'; state: KlondikeState }
   | { id: number; kind: 'tierLines'; state: PyramidState; seed: string }
+  | { id: number; kind: 'klondikeTrainer'; state: KlondikeState; line: KlondikeSolverMove[] | null }
   | { id: number; kind: 'findDeal'; deck: LoadedDeck; difficulty: DifficultyLevel; seeds?: string[] };
 
 export type SolverResponse =
   | { id: number; type: 'solved'; result: SolveResult<PyramidSolverMove> }
   | { id: number; type: 'klondikeLine'; result: KlondikeLineResult }
   | { id: number; type: 'line'; line: TierLine; ace: number; par: number }
-  | { id: number; type: 'done'; status: SolveStatus; ace: number; par: number }
-  | { id: number; type: 'deal'; found: FoundDeal | null };
+  | { id: number; type: 'done'; status: SolveStatus; ace: number; par: number; best: PyramidSolverMove[] }
+  | { id: number; type: 'deal'; found: FoundDeal | null }
+  | { id: number; type: 'klondikeSlip'; slip: KlondikeSlip }
+  | { id: number; type: 'klondikeTrainerDone' };
 
 type RequestBody = SolverRequest extends infer R ? (R extends SolverRequest ? Omit<R, 'id'> : never) : never;
 
@@ -99,6 +102,8 @@ export interface TierLinesSummary {
   status: SolveStatus;
   ace: number;
   par: number;
+  /** When there's no winning line: the bot's best attempt. */
+  best: PyramidSolverMove[];
 }
 
 /**
@@ -111,8 +116,11 @@ export function buildTierLinesAsync(
   onLine: (line: TierLine, ace: number, par: number) => void
 ): Promise<TierLinesSummary | null> {
   if (!workersAvailable()) {
-    const result = buildPyramidTierLines(state, seed, onLine);
-    return Promise.resolve({ status: result.status, ace: result.ace, par: result.par });
+    // Trainer code loads only when it's needed (it's in the worker bundle otherwise).
+    return import('../engines/trainer/lineBuilder').then(({ buildPyramidTierLines }) => {
+      const result = buildPyramidTierLines(state, seed, onLine);
+      return { status: result.status, ace: result.ace, par: result.par, best: result.best };
+    });
   }
   return send<TierLinesSummary>('trainer', { kind: 'tierLines', state, seed }, (msg, resolve) => {
     if (msg.type === 'line') {
@@ -120,8 +128,35 @@ export function buildTierLinesAsync(
       return false;
     }
     if (msg.type !== 'done') return false;
-    resolve({ status: msg.status, ace: msg.ace, par: msg.par });
+    resolve({ status: msg.status, ace: msg.ace, par: msg.par, best: msg.best });
     return true;
+  });
+}
+
+/**
+ * The Klondike Trainer's bot line (or best attempt), then its slips as they're found, on the
+ * trainer channel. Resolves true when done, or null if a newer trainer request replaced it.
+ */
+export function buildKlondikeTrainerAsync(
+  state: KlondikeState,
+  knownLine: KlondikeSolverMove[] | null,
+  onLine: (result: KlondikeLineResult) => void,
+  onSlip: (slip: KlondikeSlip) => void
+): Promise<true | null> {
+  if (!workersAvailable()) {
+    return import('../engines/trainer/klondikeTrainer').then(({ runKlondikeTrainer }) => {
+      runKlondikeTrainer(state, knownLine, onLine, onSlip);
+      return true as const;
+    });
+  }
+  return send<true>('trainer', { kind: 'klondikeTrainer', state, line: knownLine }, (msg, resolve) => {
+    if (msg.type === 'klondikeLine') onLine(msg.result);
+    else if (msg.type === 'klondikeSlip') onSlip(msg.slip);
+    else if (msg.type === 'klondikeTrainerDone') {
+      resolve(true);
+      return true;
+    }
+    return false;
   });
 }
 

@@ -1,17 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  GraduationCap,
-  X,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  ChevronLeft,
-  ChevronRight,
-  AlertTriangle,
-  Loader2,
-  Shuffle,
-} from 'lucide-react';
+import { GraduationCap, X, AlertTriangle, Loader2, Shuffle } from 'lucide-react';
 import type { DifficultyLevel, PyramidState } from '../types/solitaire';
 import type { LoadedDeck } from '../services/deckLoader';
 import type { PyramidCardRef, PyramidSolverMove } from '../engines/solvers/types';
@@ -22,11 +10,14 @@ import {
   TRAINER_TIERS,
   TRAINER_TIER_LABELS,
   type TierLine,
+  type TrainerStep,
   type TrainerTier,
 } from '../engines/trainer/lineBuilder';
 import { buildTierLinesAsync, cancelTrainerWork, findWinnableDealAsync } from '../services/solverClient';
 import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
 import { PyramidBoard } from './PyramidBoard';
+import { TrainerControls } from './TrainerControls';
+import { useTrainerPlayback } from '../hooks/useTrainerPlayback';
 
 interface TrainerViewProps {
   deck: LoadedDeck;
@@ -37,9 +28,6 @@ interface TrainerViewProps {
 }
 
 type TrainerStatus = 'loading' | 'ready' | 'unwinnable' | 'searching';
-
-const SPEEDS = [0.5, 1, 2, 4];
-const BASE_STEP_MS = 1100;
 
 const noop = () => {};
 
@@ -64,9 +52,8 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
   const [par, setPar] = useState(0);
   const [allBuilt, setAllBuilt] = useState(false);
   const [tier, setTier] = useState<TrainerTier>(initialTier);
-  const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  // When the deal can't be won: the bot's best attempt, played instead of the levels.
+  const [best, setBest] = useState<PyramidSolverMove[]>([]);
   const sessionRef = useRef(0);
 
   // Builds a deal's five lines in the worker; they arrive one by one, Ace first. Lines from
@@ -91,6 +78,7 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
     const state = dealPyramid(deck, forSeed, difficulty);
     setSession({ seed: forSeed, deal: state });
     setLines({});
+    setBest([]);
     setAllBuilt(false);
     setIndex(0);
     setPlaying(false);
@@ -101,7 +89,10 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
 
   useEffect(() => {
     buildLines(dealPyramid(deck, seed, difficulty), seed).then((summary) => {
-      if (summary && summary.status !== 'solved') setStatus('unwinnable');
+      if (summary && summary.status !== 'solved') {
+        setBest(summary.best);
+        setStatus('unwinnable');
+      }
     });
     return cancelTrainerWork;
   }, [buildLines, deck, seed, difficulty]);
@@ -118,26 +109,21 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
   const chosenLine = lines[tier];
   const shownTier: TrainerTier = chosenLine && !reachesTier(chosenLine) ? 'ace' : tier;
   const line = lines[shownTier];
-  const steps = useMemo(() => line?.steps ?? [], [line]);
+  const unwinnable = status === 'unwinnable';
+  const steps = useMemo(() => (unwinnable ? best.map((move): TrainerStep => ({ move })) : line?.steps ?? []), [unwinnable, best, line]);
   const states = useMemo(() => {
     const out: PyramidState[] = [deal];
     for (const step of steps) out.push(applyPyramidMove(out[out.length - 1], step.move)!);
     return out;
   }, [deal, steps]);
   const total = steps.length;
+  const playback = useTrainerPlayback(total, Boolean(line) || unwinnable, onClose);
+  const { index, setIndex, setPlaying } = playback;
   const current = states[Math.min(index, total)] ?? deal;
   const lastStep = index > 0 ? steps[index - 1] : undefined;
   const nextStep = steps[index];
   const highlight = useMemo(() => cardIdsFor(current, nextStep?.move), [current, nextStep]);
   const slips = useMemo(() => steps.map((s, i) => (s.lesson ? i + 1 : -1)).filter((i) => i > 0), [steps]);
-
-  // Autoplay: one move per tick. Reaching the end simply stops it.
-  const isPlaying = playing && index < total && Boolean(line);
-  useEffect(() => {
-    if (!isPlaying) return;
-    const timer = setTimeout(() => setIndex((i) => Math.min(total, i + 1)), BASE_STEP_MS / speed);
-    return () => clearTimeout(timer);
-  }, [isPlaying, index, total, speed]);
 
   const selectTier = useCallback(
     (next: TrainerTier) => {
@@ -147,33 +133,26 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
       setIndex(0);
       setPlaying(false);
     },
-    [lines]
+    [lines, setIndex, setPlaying]
   );
 
-  // Trainer keys win over the game's while it's open.
+  // Keys 1–5 pick a bot level (the other Trainer keys are shared).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const tierKey = Number(e.key);
-      let handled = true;
-      if (e.key === 'Escape') onClose();
-      else if (e.key === ' ') setPlaying(index < total && !isPlaying);
-      else if (e.key === 'ArrowRight') setIndex((i) => Math.min(total, i + 1));
-      else if (e.key === 'ArrowLeft') setIndex((i) => Math.max(0, i - 1));
-      else if (e.key === 'Home') setIndex(0);
-      else if (e.key === 'End') setIndex(total);
-      else if (tierKey >= 1 && tierKey <= TRAINER_TIERS.length) selectTier(TRAINER_TIERS[tierKey - 1]);
-      else handled = false;
-      if (handled) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      const n = Number(e.key);
+      if (!(n >= 1 && n <= TRAINER_TIERS.length)) return;
+      selectTier(TRAINER_TIERS[n - 1]);
+      e.preventDefault();
+      e.stopPropagation();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [index, total, isPlaying, onClose, selectTier]);
+  }, [selectTier]);
 
-  const rating = line && par > 0 ? calculateEfficiency(total, par, ace, 'pyramid') : null;
+  const rating = line && !unwinnable && par > 0 ? calculateEfficiency(total, par, ace, 'pyramid') : null;
+  const cleared = current.pyramid.flat().filter((c) => !c).length;
+  const showsBest = unwinnable && best.length > 0;
 
   return (
     <div className="trainer-overlay" role="dialog" aria-modal="true" aria-label="Solitaire Trainer">
@@ -189,34 +168,38 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
           </div>
         </div>
 
-        <div className="trainer-tier-chips" role="tablist" aria-label="Bot skill level">
-          {TRAINER_TIERS.map((t, i) => {
-            const tierLine = lines[t];
-            const reachable = tierLine ? reachesTier(tierLine) : false;
-            const label = TRAINER_TIER_LABELS[t];
-            const title = !tierLine
-              ? `${label}: preparing…`
-              : reachable
-              ? `${label} bot: ${tierLine.steps.length} moves (key ${i + 1})`
-              : `No ${label} line on this deal: its slips cost too few or too many moves to land exactly there`;
-            return (
-              <button
-                key={t}
-                role="tab"
-                aria-selected={shownTier === t}
-                className={`trainer-tier-chip tier-${t} ${shownTier === t ? 'active' : ''}`}
-                disabled={!reachable}
-                onClick={() => selectTier(t)}
-                title={title}
-              >
-                <span className="chip-tier-name">{label}</span>
-                <span className="chip-tier-moves">
-                  {!tierLine ? <Loader2 size={12} className="spin" /> : reachable ? tierLine.steps.length : '—'}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {unwinnable ? (
+          <div className="trainer-line-label">Best attempt · {28 - states[states.length - 1].pyramid.flat().filter(Boolean).length} of 28 cleared</div>
+        ) : (
+          <div className="trainer-tier-chips" role="tablist" aria-label="Bot skill level">
+            {TRAINER_TIERS.map((t, i) => {
+              const tierLine = lines[t];
+              const reachable = tierLine ? reachesTier(tierLine) : false;
+              const label = TRAINER_TIER_LABELS[t];
+              const title = !tierLine
+                ? `${label}: preparing…`
+                : reachable
+                ? `${label} bot: ${tierLine.steps.length} moves (key ${i + 1})`
+                : `No ${label} line on this deal: its slips cost too few or too many moves to land exactly there`;
+              return (
+                <button
+                  key={t}
+                  role="tab"
+                  aria-selected={shownTier === t}
+                  className={`trainer-tier-chip tier-${t} ${shownTier === t ? 'active' : ''}`}
+                  disabled={!reachable}
+                  onClick={() => selectTier(t)}
+                  title={title}
+                >
+                  <span className="chip-tier-name">{label}</span>
+                  <span className="chip-tier-moves">
+                    {!tierLine ? <Loader2 size={12} className="spin" /> : reachable ? tierLine.steps.length : '—'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <button className="modal-close-btn" onClick={onClose} title="Close Trainer (Esc)">
           <X size={18} />
@@ -234,7 +217,7 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
             <Loader2 size={28} className="spin gold-icon" />
             <p>Looking for a winnable deal…</p>
           </div>
-        ) : status === 'unwinnable' ? (
+        ) : unwinnable && !showsBest ? (
           <div className="trainer-message">
             <AlertTriangle size={28} className="gold-icon" />
             <p>This deal can't be won, so there's no line for the bot to show.</p>
@@ -257,12 +240,22 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
         )}
       </main>
 
-      {status === 'ready' && line && (
+      {((status === 'ready' && line) || showsBest) && (
         <footer className="trainer-dock">
           <div className="trainer-narration" aria-live="polite">
+            {showsBest && (
+              <div className="trainer-lesson">
+                <AlertTriangle size={14} />
+                <span>This deal can't be won: no winning line exists. Here's how far the bot got.</span>
+                <button className="subtle-btn trainer-watch-btn" onClick={findWinnableDeal}>
+                  <Shuffle size={14} /> Find a winnable deal
+                </button>
+              </div>
+            )}
             <div className="trainer-progress-line">
               <span>
                 Move <strong>{index}</strong> of {total}
+                {showsBest && ` · ${cleared} of 28 cleared`}
               </span>
               {rating && (
                 <span className="trainer-rating" style={{ color: rating.accentColor }}>
@@ -282,80 +275,13 @@ export const TrainerView: React.FC<TrainerViewProps> = ({ deck, seed, difficulty
               </div>
             )}
             {nextStep && <p className="trainer-next-move">Next: {imperative(current, nextStep.move)}</p>}
-            {index >= total && <p className="trainer-next-move">Won in {total} moves.</p>}
+            {index >= total && !unwinnable && <p className="trainer-next-move">Won in {total} moves.</p>}
           </div>
 
-          <div className="slider-wrapper trainer-scrubber">
-            <input
-              type="range"
-              min={0}
-              max={total}
-              value={index}
-              onChange={(e) => {
-                setPlaying(false);
-                setIndex(Number(e.target.value));
-              }}
-              className="timeline-range-slider"
-              aria-label="Move"
-            />
-            <div className="slider-tick-track">
-              {slips.map((at) => (
-                <div
-                  key={at}
-                  className="slider-tick slip"
-                  style={{ left: `${total > 0 ? (at / total) * 100 : 0}%` }}
-                  onClick={() => {
-                    setPlaying(false);
-                    setIndex(at);
-                  }}
-                  title={`Slip at move ${at}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="trainer-transport">
-            <button className="timeline-nav-btn" onClick={() => setIndex(0)} disabled={index === 0} title="Back to the deal (Home)">
-              <SkipBack size={15} />
-            </button>
-            <button
-              className="timeline-nav-btn"
-              onClick={() => setIndex((i) => Math.max(0, i - 1))}
-              disabled={index === 0}
-              title="Previous move (←)"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              className="primary-action-btn trainer-play-btn"
-              onClick={() => (index >= total ? (setIndex(0), setPlaying(true)) : setPlaying((p) => !p))}
-              title="Play or pause (Space)"
-            >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-              <span>{isPlaying ? 'Pause' : index >= total ? 'Replay' : 'Play'}</span>
-            </button>
-            <button
-              className="timeline-nav-btn"
-              onClick={() => setIndex((i) => Math.min(total, i + 1))}
-              disabled={index >= total}
-              title="Next move (→)"
-            >
-              <ChevronRight size={16} />
-            </button>
-            <button className="timeline-nav-btn" onClick={() => setIndex(total)} disabled={index >= total} title="Jump to the end (End)">
-              <SkipForward size={15} />
-            </button>
-            <div className="trainer-speed" role="group" aria-label="Playback speed">
-              {SPEEDS.map((s) => (
-                <button key={s} className={`trainer-speed-btn ${speed === s ? 'active' : ''}`} onClick={() => setSpeed(s)}>
-                  {s}×
-                </button>
-              ))}
-            </div>
-          </div>
+          <TrainerControls playback={playback} marks={slips.map((at) => ({ at, title: `Slip at move ${at}` }))} />
 
           <p className="trainer-footnote">
-            The bot knows where every card is.{!allBuilt && ' Other skill levels are still being prepared.'}
+            The bot knows where every card is.{!allBuilt && !unwinnable && ' Other skill levels are still being prepared.'}
           </p>
         </footer>
       )}

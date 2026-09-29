@@ -1,5 +1,6 @@
 import type { GameMode, DifficultyLevel, KlondikeState, PyramidState } from '../types/solitaire';
 import type { CachedParRecord, ParInfo } from '../types/par';
+import type { KlondikeSolverMove } from '../engines/solvers/types';
 import { estimateKlondikePar } from '../engines/solvers/klondikeSolver';
 import { estimatePyramidPar } from '../engines/solvers/pyramidSolver';
 import { parFromAce, parFromSolverLine } from '../utils/efficiencyRating';
@@ -33,6 +34,14 @@ function writeCacheRecord(key: string, info: ParInfo): void {
   } catch (err) {
     console.warn('Failed to save Par cache to localStorage:', err);
   }
+}
+
+// Klondike lines found this session (they're too big to cache in localStorage), for the Trainer.
+const knownKlondikeLines = new Map<string, KlondikeSolverMove[]>();
+
+/** The bot's winning line for a Klondike deal, if Par was worked out for it this session. */
+export function getKnownKlondikeLine(mode: GameMode, difficulty: DifficultyLevel, seed: string): KlondikeSolverMove[] | null {
+  return knownKlondikeLines.get(getCacheKey(mode, difficulty, seed)) ?? null;
 }
 
 /** Par already worked out for this deal, if any. */
@@ -88,6 +97,7 @@ export async function computeParInfo(
     if (!initialKlondike) return estimateParInfo(mode, difficulty, null, null);
     const line = await findKlondikeLineAsync(initialKlondike, { channel: 'par' });
     if (!line) return null;
+    if (line.status === 'solved') knownKlondikeLines.set(getCacheKey(mode, difficulty, seed), line.moves);
     const info: ParInfo =
       line.status === 'solved'
         ? { par: parFromSolverLine(line.moves.length), ace: null, isExact: false, winnable: true, line: line.moves.length }

@@ -113,8 +113,8 @@ const EuterpeTools: React.FC<{ pyramid?: boolean }> = ({ pyramid }) => (
         </li>
       ) : (
         <li>
-          <strong>Winnable deals only</strong> (seed picker) and the <strong>Trainer</strong> come to Klondike once its
-          solver lands.
+          <strong>The Trainer</strong> (graduation cap) plays the bot's best line for this deal, says what each move does,
+          and marks tempting slips along the way with what they cost. Watch any slip to see it play out.
         </li>
       )}
     </ul>

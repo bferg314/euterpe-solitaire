@@ -53,9 +53,17 @@ describe('buildPyramidTierLines', () => {
     expect(buildPyramidTierLines(deal, 'TEST-8')).toEqual(buildPyramidTierLines(deal, 'TEST-8'));
   }, 30_000);
 
-  it('reports an unwinnable deal', () => {
-    const result = buildPyramidTierLines(dealPyramid(deck, 'TEST-4', 'medium'), 'TEST-4');
+  it('reports an unwinnable deal, with the best attempt the bot found', () => {
+    const deal = dealPyramid(deck, 'TEST-4', 'medium');
+    const result = buildPyramidTierLines(deal, 'TEST-4');
     expect(result.status).toBe('unsolvable');
     expect(result.lines).toEqual([]);
+    // The best attempt replays legally and clears some of the pyramid, but not all of it.
+    let state = deal;
+    for (const move of result.best) state = applyPyramidMove(state, move)!;
+    expect(state).toBeTruthy();
+    const left = state.pyramid.flat().filter(Boolean).length;
+    expect(left).toBeGreaterThan(0);
+    expect(left).toBeLessThan(28);
   });
 });

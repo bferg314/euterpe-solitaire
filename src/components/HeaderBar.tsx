@@ -260,11 +260,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <button
             className="icon-btn"
             onClick={onOpenTrainer}
-            disabled={gameMode !== 'pyramid'}
             title={
               gameMode === 'pyramid'
                 ? 'Trainer - Watch a bot win this deal at five skill levels'
-                : 'Trainer - Pyramid only for now (Klondike is coming)'
+                : "Trainer - Watch the bot's best line for this deal, and the slips to avoid"
             }
           >
             <GraduationCap size={16} />

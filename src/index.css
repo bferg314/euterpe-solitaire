@@ -3051,6 +3051,10 @@ kbd {
 }
 
 /* Read-only boards (the Trainer's replay) */
+.klondike-board.read-only {
+  pointer-events: none;
+}
+
 .read-only .solitaire-card,
 .read-only .card-slot {
   cursor: default;
@@ -3312,6 +3316,58 @@ kbd {
   --card-w: clamp(44px, min(8vw, calc((100vh - 420px) / 6)), 104px);
   --card-h: calc(var(--card-w) * var(--card-aspect-ratio));
   --card-radius: calc(var(--card-w) * (3.5 / 63.5));
+}
+
+/* Klondike: seven columns across and two card-heights plus a fanned column down. */
+.trainer-overlay.trainer-klondike {
+  --card-w: clamp(40px, min(10vw, calc((100vh - 560px) / 2.2)), 96px);
+}
+
+.trainer-line-label {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-gold) 45%, transparent);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--color-gold);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trainer-principle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-gold);
+}
+
+.trainer-tempting {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  color: #f5e7b8;
+  font-size: 13px;
+}
+
+.trainer-tempting > span {
+  flex: 1 1 240px;
+}
+
+.trainer-tempting svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-gold);
+}
+
+.trainer-watch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
 }
 
 /* Shown over the table while a winnable Pyramid deal is being found */

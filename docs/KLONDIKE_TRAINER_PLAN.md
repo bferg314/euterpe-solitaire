@@ -1,4 +1,4 @@
-# Klondike Solver & Trainer — Implementation Plan `[In Progress]`
+# Klondike Solver & Trainer — Implementation Plan `[Phases 0–3 done]`
 
 Bring the Trainer (roadmap 3.4) to Klondike Turn 1 and Turn 3, and make random dealing the default in every game.
 
@@ -108,38 +108,22 @@ Prototype the solver and run it on about 100 fixed seeds each for Turn 1 and Tur
   - replay every line legally through the engine
   - keep `npm test` near 10 s
 
-### Phase 3 — Generic Trainer, then Klondike
+### Phase 3 — Trainer for both games `[Done]`
 
-**Changed after Phase 0:** Klondike has no proven-shortest line to build Ace-to-Bogey bots from. The Klondike Trainer shows **the bot's best line**, narrated with rules of thumb. Its slips are common mistakes, each costed against the bot's line ("this cost 6 moves compared to the bot's line"). Pyramid keeps its five bots. The generic builder below still applies to both.
+**Changed after Phase 0:** Klondike has no proven-shortest line to build Ace-to-Bogey bots from, so the generic line builder was dropped. Pyramid keeps its five bots and its builder; the games share the Trainer's screen instead.
 
-
-- **Generic builder:**
-  - Extract a `TrainerGame<S, M>` interface: solve, list moves, apply, state key, move text, mode and Bogey cap.
-  - `lineBuilder` becomes generic, and Pyramid gets an adapter.
-  - Snapshot Pyramid's current lines for fixed seeds first; the refactor must reproduce them exactly.
-- **Klondike adapter:**
-  - move text: "Moved 7♠ onto 8♥", "Drew three cards", "Played A♣ to the foundation"
-  - a per-mode Bogey cap
-- **Worker and caching:** make the worker's messages and the `tierLines` request work for both games, and reuse the par solve's line instead of solving again.
-- **Board:** `KlondikeBoard` gets `interactive` and `highlightCardIds` props, and `TrainerView` picks the board by game mode.
-- **Best attempt** (both games), used when there's no winning line:
-  - Replace the dead end with a single "Best attempt" line.
-  - Say how far it got ("41 of 52 cards home" / "24 of 28 cleared").
-  - Say why it stopped: "This deal can't be won" only when proven; otherwise "The bot didn't find a win. This deal may still be winnable."
-  - Keep "Find a winnable deal" next to it.
-- **Principles:**
-  - A pure `principleFor(state, move)` tags moves with the rule of thumb they follow:
-    - play Aces and 2s at once
-    - turn over face-down cards, biggest hidden pile first
-    - don't empty a column without a King to fill it
-    - send cards to the foundation only when safe or when it frees something
-    - Turn 3: plan draws so the stock order changes
-  - Slip lessons name the rule the slip broke.
-  - The copy says what a move does, never that it's *why* the solver chose it.
-- **Entry points and copy:**
-  - Enable the header Trainer button and Victory's "Watch the Ace line" for Klondike.
-  - Update the Strategy Guide and the roadmap.
-  - The keyboard sheet is unchanged (same keys).
+What was built:
+- **Klondike trainer module** (`engines/trainer/klondikeTrainer.ts`):
+  - Move text, e.g. "Moved 7♠ onto 8♥" and "Play A♣ to the foundation".
+  - `klondikePrinciple`: the rule of thumb a move follows, such as Aces and 2s home at once, safe to send home, turning over the column hiding the most, emptying a column for a King, or drawing toward a named card. It says what a move does, never why the solver chose it.
+  - `findKlondikeSlips`: tempting alternatives along the bot's line. Each is costed by the bot's best finish after it (a weighted search, so the copy says "the bot's best finish takes N more moves"). They're spread across the game, each card used once and draws at most twice, with at most 8 slips and a fixed node budget, so the result is deterministic.
+- **Best attempt, both games:** when there's no win, the Trainer plays the furthest line the solver found, says how far it got, and says why it stopped. Klondike never says "can't be won"; Pyramid does, because its solver proves it. For Pyramid a second search keeps exploring dead positions, since the exact solver stops at the first proof.
+- **Worker:** a streaming `klondikeTrainer` request (line first, then slips). The line found for Par is reused, so the Trainer opens in under a second.
+- **Screen:**
+  - `useTrainerPlayback` and `TrainerControls` are shared.
+  - `KlondikeTrainerView` shows "Tempting here" before a slip, with "Watch it" and "Back to the bot's line".
+  - `KlondikeBoard` got `interactive` and `highlightCardIds`.
+  - Both Trainer views load lazily, which keeps the main bundle under 500 kB.
 
 ### Phase 4 — Winnable-only Klondike (optional)
 

@@ -44,6 +44,8 @@ export interface TierLinesResult {
   ace: number;
   par: number;
   lines: TierLine[];
+  /** When there's no winning line: the bot's best attempt (see `SolveResult.bestMoves`). */
+  best: PyramidSolverMove[];
 }
 
 /** The move counts that rate as each tier on Pyramid (matches `calculateEfficiency`). */
@@ -53,6 +55,7 @@ export function tierRange(tier: TrainerTier, ace: number, par: number): { min: n
 }
 
 const MAX_DETOURS = 6;
+const BEST_ATTEMPT_NODES = 100_000;
 // Evaluating a slip needs a capped re-solve, which early in a hard deal can be slow. A fast pass
 // skips slips it can't settle quickly; a tier that misses its range gets a deeper second pass.
 const FAST_SLIP_NODES = 40_000;
@@ -279,7 +282,11 @@ export function buildPyramidTierLines(
   onLine?: (line: TierLine, ace: number, par: number) => void
 ): TierLinesResult {
   const solved = solvePyramid(start);
-  if (solved.status !== 'solved') return { status: solved.status, ace: 0, par: 0, lines: [] };
+  if (solved.status !== 'solved') {
+    // No win: the bot's best attempt is the most of the pyramid it can clear.
+    const attempt = solvePyramid(start, { exploreDead: true, maxNodes: BEST_ATTEMPT_NODES });
+    return { status: solved.status, ace: 0, par: 0, lines: [], best: attempt.bestMoves ?? [] };
+  }
 
   const ace = solved.moves.length;
   const par = parFromAce(ace, 'pyramid');
@@ -290,5 +297,5 @@ export function buildPyramidTierLines(
     built.set(tier, line);
     onLine?.(line, ace, par);
   }
-  return { status: 'solved', ace, par, lines: TRAINER_TIERS.map((tier) => built.get(tier)!) };
+  return { status: 'solved', ace, par, lines: TRAINER_TIERS.map((tier) => built.get(tier)!), best: solved.moves };
 }
