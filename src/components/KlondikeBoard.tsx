@@ -555,6 +555,18 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       case 'F':
         if (!busy) sendToFoundation();
         return true;
+      case 'a':
+      case 'A': {
+        // Select the column's whole face-up run (press again for just the top card), ready for
+        // Space to pick it up or Enter to play it.
+        if (held || cursor.zone !== 'tableau') return true;
+        const cards = state.tableau[cursor.col];
+        const firstFaceUp = cards.findIndex((c) => c.faceUp);
+        if (firstFaceUp < 0) return true;
+        const wholeRun = cursor.index === firstFaceUp;
+        moveCursorTo({ ...cursor, index: wholeRun ? cards.length - 1 : firstFaceUp });
+        return true;
+      }
       case 'Escape':
         if (!held) return false;
         setHeld(null);
@@ -590,7 +602,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       tabIndex={interactive ? 0 : -1}
       role="application"
       aria-roledescription="Klondike board"
-      aria-label="Klondike board. Arrow keys move, Space picks up or drops, Enter plays a card, D draws, 1 to 7 jump to a column. Press ? for all shortcuts."
+      aria-label="Klondike board. Arrow keys move, Space picks up or drops, Enter plays a card, D draws, 1 to 7 jump to a column, A selects the whole run. Press ? for all shortcuts."
       onFocus={keyboard.onBoardFocus}
     >
       {/* Golden Vector Flight Animation Overlay */}
