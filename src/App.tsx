@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import type { GameMode, DifficultyLevel, KlondikeState, PyramidState, ThemeId, SolitaireCard } from './types/solitaire';
 import type { LoadedDeck } from './services/deckLoader';
 import { loadInitialDeck } from './services/deckLoader';
@@ -32,7 +32,11 @@ import { SeedModal } from './components/SeedModal';
 import { DeckManagerModal } from './components/DeckManagerModal';
 import { ThemeModal } from './components/ThemeModal';
 import { RulesModal, type RulesTab } from './components/RulesModal';
-import { TrainerView } from './components/TrainerView';
+// The Trainer loads when it's first opened: it's a big chunk of code most games never need.
+const TrainerView = lazy(() => import('./components/TrainerView').then((m) => ({ default: m.TrainerView })));
+const KlondikeTrainerView = lazy(() =>
+  import('./components/KlondikeTrainerView').then((m) => ({ default: m.KlondikeTrainerView }))
+);
 import { StrategyModal } from './components/StrategyModal';
 import type { TrainerTier } from './engines/trainer/lineBuilder';
 import { ConfirmModal } from './components/ConfirmModal';
@@ -180,7 +184,7 @@ export const App: React.FC = () => {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogConfig | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
   // The Trainer overlay: which deal and skill level it opened on (null when closed).
-  const [trainer, setTrainer] = useState<{ seed: string; difficulty: DifficultyLevel; tier: TrainerTier } | null>(null);
+  const [trainer, setTrainer] = useState<{ seed: string; difficulty: DifficultyLevel; mode: GameMode; tier: TrainerTier } | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const hasInitializedRef = useRef(false);
@@ -1035,7 +1039,7 @@ export const App: React.FC = () => {
         onOpenStatsModal={() => setShowStatsModal(true)}
         onOpenThemeModal={() => setShowThemeModal(true)}
         onOpenDeckModal={() => setShowDeckModal(true)}
-        onOpenTrainer={() => setTrainer({ seed, difficulty, tier: 'ace' })}
+        onOpenTrainer={() => setTrainer({ seed, difficulty, mode: gameMode, tier: 'ace' })}
         onOpenStrategy={() => setShowStrategyModal(true)}
         onOpenRulesModal={() => {
           setRulesTab(gameMode === 'pyramid' ? 'pyramid' : 'klondike');
@@ -1121,14 +1125,10 @@ export const App: React.FC = () => {
           score={score}
           onPlayAgain={() => startNewDeal(gameMode, difficulty)}
           onReplaySeed={() => startNewDeal(gameMode, difficulty, seed)}
-          onWatchTrainer={
-            gameMode === 'pyramid'
-              ? () => {
-                  setShowVictoryModal(false);
-                  setTrainer({ seed, difficulty, tier: 'ace' });
-                }
-              : undefined
-          }
+          onWatchTrainer={() => {
+            setShowVictoryModal(false);
+            setTrainer({ seed, difficulty, mode: gameMode, tier: 'ace' });
+          }}
           onClose={() => setShowVictoryModal(false)}
         />
       )}
@@ -1181,15 +1181,26 @@ export const App: React.FC = () => {
       )}
 
       {/* Trainer: watch a bot play a known winning line */}
-      {trainer && deck && (
-        <TrainerView
-          deck={deck}
-          seed={trainer.seed}
-          difficulty={trainer.difficulty}
-          initialTier={trainer.tier}
-          onClose={() => setTrainer(null)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {trainer && deck && trainer.mode === 'pyramid' && (
+          <TrainerView
+            deck={deck}
+            seed={trainer.seed}
+            difficulty={trainer.difficulty}
+            initialTier={trainer.tier}
+            onClose={() => setTrainer(null)}
+          />
+        )}
+        {trainer && deck && trainer.mode !== 'pyramid' && (
+          <KlondikeTrainerView
+            deck={deck}
+            seed={trainer.seed}
+            difficulty={trainer.difficulty}
+            gameMode={trainer.mode}
+            onClose={() => setTrainer(null)}
+          />
+        )}
+      </Suspense>
 
       {/* The Fork Timeline Modal */}
       <ForkModal

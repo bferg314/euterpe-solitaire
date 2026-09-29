@@ -8,6 +8,8 @@ interface CardStackProps {
   deck: LoadedDeck | null;
   columnIndex: number;
   hintCardId?: string | null;
+  /** Cards to light up, e.g. the ones a replayed move is about to play. */
+  highlightCardIds?: string[];
   /** Keyboard cursor: the card a pick-up starts from, -1 for an empty column, null when elsewhere. */
   cursorIndex?: number | null;
   /** The cursor marks a drop target (cards are held) rather than a pick-up. */
@@ -37,6 +39,7 @@ export const CardStack: React.FC<CardStackProps> = ({
   deck,
   columnIndex,
   hintCardId,
+  highlightCardIds,
   cursorIndex = null,
   cursorIsTarget = false,
   heldFromIndex = null,
@@ -75,7 +78,7 @@ export const CardStack: React.FC<CardStackProps> = ({
       </div>
 
       {cards.map((card, idx) => {
-        const isHint = hintCardId === card.id;
+        const isHint = hintCardId === card.id || Boolean(highlightCardIds?.includes(card.id));
         const isHeld = heldFromIndex !== null && idx >= heldFromIndex;
 
         return (

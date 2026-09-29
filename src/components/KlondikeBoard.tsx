@@ -29,6 +29,10 @@ interface KlondikeBoardProps {
   keyboardEnabled?: boolean;
   onKeyboardActivate?: () => void;
   onStateChange: (newState: KlondikeState, description: string) => void;
+  /** False for a read-only replay (the Trainer): clicks, drags and keys do nothing. */
+  interactive?: boolean;
+  /** Cards to light up, e.g. the ones a replayed move is about to play. */
+  highlightCardIds?: string[];
 }
 
 interface DragPayload {
@@ -90,6 +94,8 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
   keyboardEnabled = true,
   onKeyboardActivate,
   onStateChange,
+  interactive = true,
+  highlightCardIds = [],
 }) => {
   const [activeDrag, setActiveDrag] = useState<DragPayload | null>(null);
   const [flyingAnims, setFlyingAnims] = useState<FlyingCardAnim[]>([]);
@@ -567,7 +573,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
 
   const keyboard = useBoardKeyboard({
     boardRef,
-    enabled: keyboardEnabled,
+    enabled: keyboardEnabled && interactive,
     onKey: handleKey,
     onPointer: () => setHeld(null),
     onActivate: onKeyboardActivate,
@@ -580,8 +586,8 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
   return (
     <div
       ref={boardRef}
-      className={`klondike-board ${showCursor ? 'kb-mode' : ''}`}
-      tabIndex={0}
+      className={`klondike-board ${showCursor ? 'kb-mode' : ''} ${interactive ? '' : 'read-only'}`}
+      tabIndex={interactive ? 0 : -1}
       role="application"
       aria-roledescription="Klondike board"
       aria-label="Klondike board. Arrow keys move, Space picks up or drops, Enter plays a card, D draws, 1 to 7 jump to a column. Press ? for all shortcuts."
@@ -609,6 +615,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
                   card={state.stock[state.stock.length - 1]}
                   deck={deck}
                   className="stock-top-card"
+                  isHint={highlightCardIds.includes(state.stock[state.stock.length - 1].id)}
                 />
                 <span className="pile-count-badge">{state.stock.length}</span>
               </div>
@@ -639,7 +646,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
                       <CardView
                         card={card}
                         deck={deck}
-                        isHint={isTop && hintCardId === card.id}
+                        isHint={isTop && (hintCardId === card.id || highlightCardIds.includes(card.id))}
                         draggable={isTop}
                         onDragStart={isTop ? handleWasteDragStart : undefined}
                         onClick={isTop ? () => handleCardClick(card) : undefined}
@@ -701,6 +708,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
             cards={colCards}
             deck={deck}
             hintCardId={hintCardId}
+            highlightCardIds={highlightCardIds}
             cursorIndex={showCursor && cursor.zone === 'tableau' && cursor.col === colIdx ? cursor.index : null}
             cursorIsTarget={held !== null}
             heldFromIndex={held?.source.pile === 'tableau' && held.source.col === colIdx ? held.source.index : null}

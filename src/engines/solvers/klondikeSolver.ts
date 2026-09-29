@@ -469,6 +469,8 @@ export interface KlondikeSolveOptions {
 export interface KlondikeSolveResult extends SolveResult<KlondikeSolverMove> {
   /** The most cards the search got home, for a deal it didn't win. */
   bestHome: number;
+  /** A line reaching `bestHome` in the fewest moves found: the bot's best attempt when it can't win. */
+  bestMoves: KlondikeSolverMove[];
 }
 
 /** Growable Int32 column for the open list. */
@@ -505,6 +507,7 @@ export function solveKlondike(state: KlondikeState, options: KlondikeSolveOption
   const buckets: number[][] = [];
   let lowestBucket = 0;
   let bestHome = cardsHome(deal.start);
+  let bestNode = 0;
 
   const enqueue = (parent: number, step: number, g: number, f: number) => {
     const e = openParent.push(parent);
@@ -547,11 +550,15 @@ export function solveKlondike(state: KlondikeState, options: KlondikeSolveOption
     }
 
     const home = cardsHome(p);
-    if (home > bestHome) bestHome = home;
-    if (home === 52) {
-      return { status: 'solved', moves: rebuild(n), exact: weight === 1, nodes: expanded, bestHome: 52 };
+    if (home > bestHome || (home === bestHome && g < nodeG[bestNode])) {
+      bestHome = home;
+      bestNode = n;
     }
-    if (++expanded > maxNodes) return { status: 'budget', moves: [], exact: false, nodes: expanded, bestHome };
+    if (home === 52) {
+      const moves = rebuild(n);
+      return { status: 'solved', moves, exact: weight === 1, nodes: expanded, bestHome: 52, bestMoves: moves };
+    }
+    if (++expanded > maxNodes) return failed('budget');
     for (const step of listSteps(deal, p)) {
       const childG = g + step.cost;
       if (childG > maxLength) continue;
@@ -561,7 +568,11 @@ export function solveKlondike(state: KlondikeState, options: KlondikeSolveOption
       enqueue(n, packStep(step), childG, Math.floor(childG + weight * h));
     }
   }
-  return { status: 'unsolvable', moves: [], exact: weight === 1, nodes: expanded, bestHome };
+  return failed('unsolvable');
+
+  function failed(status: 'budget' | 'unsolvable'): KlondikeSolveResult {
+    return { status, moves: [], exact: status === 'unsolvable' && weight === 1, nodes: expanded, bestHome, bestMoves: rebuild(bestNode) };
+  }
 
   function rebuild(goal: number): KlondikeSolverMove[] {
     const steps: KStep[] = [];
@@ -582,6 +593,8 @@ export interface KlondikeLineResult {
   exact: boolean;
   nodes: number;
   bestHome: number;
+  /** When there's no win: the line that got the most cards home (see `KlondikeSolveResult`). */
+  bestMoves: KlondikeSolverMove[];
 }
 
 /**
@@ -592,7 +605,8 @@ export function findKlondikeLine(state: KlondikeState, nodesPerPass = DEFAULT_KL
   let best: KlondikeSolverMove[] | null = null;
   let exact = false;
   let nodes = 0;
-  let bestHome = 0;
+  let bestHome = -1;
+  let bestMoves: KlondikeSolverMove[] = [];
   for (const weight of LINE_PASS_WEIGHTS) {
     const result = solveKlondike(state, {
       weight,
@@ -600,17 +614,21 @@ export function findKlondikeLine(state: KlondikeState, nodesPerPass = DEFAULT_KL
       maxLength: best ? best.length - 1 : Infinity,
     });
     nodes += result.nodes;
-    bestHome = Math.max(bestHome, result.bestHome);
+    const further = result.bestHome > bestHome;
+    if (!best && (further || (result.bestHome === bestHome && result.bestMoves.length < bestMoves.length))) {
+      bestHome = result.bestHome;
+      bestMoves = result.bestMoves;
+    }
     if (result.status === 'solved') {
       best = result.moves;
       if (weight === 1) exact = true;
     } else if (result.status === 'unsolvable') {
-      if (!best) return { status: 'unsolvable', moves: [], exact: false, nodes, bestHome };
+      if (!best) return { status: 'unsolvable', moves: [], exact: false, nodes, bestHome, bestMoves };
       // Nothing shorter at this weight. Weighted passes can miss lines; the unweighted one can't.
       if (weight === 1) exact = true;
     }
   }
   return best
-    ? { status: 'solved', moves: best, exact, nodes, bestHome: 52 }
-    : { status: 'budget', moves: [], exact: false, nodes, bestHome };
+    ? { status: 'solved', moves: best, exact, nodes, bestHome: 52, bestMoves: best }
+    : { status: 'budget', moves: [], exact: false, nodes, bestHome, bestMoves };
 }

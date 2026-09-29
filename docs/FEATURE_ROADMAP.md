@@ -67,10 +67,13 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 * **Description:** A dedicated parlor acoustics panel enabling users to blend bespoke ambient layers (soft vinyl crackle, gentle rain against windowpanes, fireplace embers, tactile card weights) with custom card acoustic profiles (heavy linen snap vs. silk glide).
 * **Value Proposition:** Reinforces Euterpe’s distinct position as a premium sensory refuge, transforming the game into an everyday focus and study companion.
 
-### 3.4 Solitaire Trainer `[In Progress]`
-* **Description:** Watch a bot win a deal along a known winning line at five skill levels: Bogey, Par, Birdie, Eagle and Ace. Weaker bots take realistic detours from the Ace line, and each detour is explained with the moves it cost.
+### 3.4 Solitaire Trainer `[Implemented]`
+* **Description:** Watch a bot play the deal in front of you. In Pyramid it plays a known winning line at five skill levels (Bogey, Par, Birdie, Eagle, Ace), and weaker bots take realistic detours, each explained with the moves it cost. In Klondike it plays its best line, says what each move does, and marks tempting slips with what they cost.
 * **Value Proposition:** Shows what efficient play looks like on a real deal, and exactly where sloppy play loses moves.
-* **Status:** Live for Pyramid: exact solver and solver-based Par, a Trainer overlay (header graduation cap, or "Watch the Ace line" after a win) with five bot levels built from the Ace line plus real slips, each slip explained with its cost, playback controls, a scrubber and keyboard control. Pyramid rates in 4-move bands with Par one typical slip (16 moves) above the Ace line, since a Pyramid slip usually costs a whole stock pass; Klondike keeps the golf-exact ladder. Klondike solver: done (weighted A* in passes; see `docs/KLONDIKE_TRAINER_PLAN.md` for the benchmark). Next: the Klondike Trainer.
+* **Status:**
+  * **Pyramid:** exact solver and solver-based Par, five bot levels built from the Ace line plus real slips, each slip explained with its cost. Rates in 4-move bands with Par one typical slip (16 moves) above the Ace line, since a Pyramid slip usually costs a whole stock pass.
+  * **Klondike:** weighted-A* solver in passes (see `docs/KLONDIKE_TRAINER_PLAN.md` for the benchmark). Its lines aren't proven shortest, so there's no bot ladder: the Trainer plays the bot's line with a rule of thumb per move, up to 8 costed slips you can watch play out, and the bot's best attempt when it finds no win. Turn 1 rates golf-exact; Turn 3 in 3-move bands.
+  * **Both:** header graduation cap, or "Watch" after a win; playback controls, a scrubber with slip marks, and keyboard control.
 
 ---
 

@@ -20,7 +20,7 @@ interface VictoryModalProps {
   parExact?: boolean;
   onPlayAgain: () => void;
   onReplaySeed: () => void;
-  /** Opens the Trainer on this deal (Pyramid only for now). */
+  /** Opens the Trainer on this deal. */
   onWatchTrainer?: () => void;
   onClose: () => void;
 }
@@ -150,10 +150,14 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             <button
               className="secondary-action-btn"
               onClick={onWatchTrainer}
-              title="Watch a bot play this deal's best line, and how weaker lines lose moves"
+              title={
+                gameMode === 'pyramid'
+                  ? "Watch a bot play this deal's best line, and how weaker lines lose moves"
+                  : "Watch the bot's best line for this deal, and the slips to avoid"
+              }
             >
               <GraduationCap size={16} />
-              <span>Watch the Ace line</span>
+              <span>{gameMode === 'pyramid' ? 'Watch the Ace line' : "Watch the bot's line"}</span>
             </button>
           )}
           <button className="secondary-action-btn" onClick={copyShareText} title="Share results with efficiency rating">

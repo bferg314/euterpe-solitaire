@@ -37,4 +37,6 @@ export interface SolveResult<TMove> {
   exact: boolean;
   /** States expanded, for tuning budgets. */
   nodes: number;
+  /** When there's no win: a line to the furthest position reached, the bot's best attempt. */
+  bestMoves?: TMove[];
 }
