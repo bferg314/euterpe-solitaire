@@ -1099,7 +1099,6 @@ export const App: React.FC = () => {
             deck={deck}
             hintCardId={forkPreviewIndex !== null ? null : hintCardId}
             ambientVacuumEnabled={comfortSettings.ambientVacuumEnabled && !isAutoFinishing}
-            smartTapEnabled={comfortSettings.smartTapEnabled}
             keyboardEnabled={boardKeyboardEnabled}
             onKeyboardActivate={handleKeyboardActivate}
             onStateChange={handleKlondikeChange}

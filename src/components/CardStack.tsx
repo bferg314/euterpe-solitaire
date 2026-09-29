@@ -85,6 +85,7 @@ export const CardStack: React.FC<CardStackProps> = ({
           <div
             key={card.instanceId}
             id={`card-${card.instanceId}`}
+            data-motion-id={card.instanceId}
             className={`stacked-card-wrapper ${isHeld ? 'kb-held' : ''}`}
             style={{
               top: `${offsets[idx]}px`,
