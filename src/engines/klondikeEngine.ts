@@ -2,6 +2,7 @@ import type { SolitaireCard, KlondikeState, DifficultyLevel } from '../types/sol
 import { SeededRNG } from '../services/rngService';
 import type { LoadedDeck } from '../services/deckLoader';
 import { createStandardPack } from '../services/standardPack';
+import type { KlondikeSolverMove } from './solvers/types';
 
 export interface MoveStep {
   from: 'tableau' | 'waste' | 'foundation';
@@ -330,4 +331,15 @@ export function applyKlondikeMove(
     next.foundations[target.index].push(...moved);
   }
   return { next, cards: moved };
+}
+
+/**
+ * Applies any Klondike move, including draws and recycles: the one rules path for solver and
+ * bot lines. Returns null when the move is illegal (a draw from an empty stock, a recycle while
+ * the stock still has cards).
+ */
+export function applyKlondikeSolverMove(state: KlondikeState, move: KlondikeSolverMove): KlondikeState | null {
+  if (move.type === 'draw') return state.stock.length > 0 ? drawStock(state) : null;
+  if (move.type === 'recycle') return state.stock.length === 0 && state.waste.length > 0 ? drawStock(state) : null;
+  return applyKlondikeMove(state, move.source, move.target)?.next ?? null;
 }
