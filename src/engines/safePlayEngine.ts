@@ -59,6 +59,9 @@ export interface SafeFoundationMove {
   targetFoundation: number;
 }
 
+/** Starts the move description of every Vacuum sweep, so a sweep can be told apart from the player's own moves. */
+export const VACUUM_MOVE_PREFIX = 'Safe-Play Vacuum:';
+
 /**
  * Searches the board for any card that can safely be vacuumed to foundations
  */

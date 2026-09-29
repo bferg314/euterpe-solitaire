@@ -34,6 +34,7 @@ These findings come from reading the code and running the production build in Ch
 - Add `forfeitCurrentGame()` in `App.tsx`. When `moves > 0 && !isWon`, it calls `recordGameResult(gameMode, difficulty, false, …)`.
 - Call it from the `onConfirm` of `handleRequestSelectMode`, `handleRequestNewGame` and `handleRequestApplySeed`.
 - Resumed saved games and the Daily go through these handlers, so they're covered. Branching with the Fork is not a new game and records nothing.
+- A game counts as started only once the player moves. The Vacuum can sweep an Ace home on the deal, and those sweeps (descriptions starting with `VACUUM_MOVE_PREFIX`) don't count. Without this, leaving an untouched deal asked for confirmation and recorded a loss.
 
 **Make Stats Replay confirm first**
 - Route the Stats modal's Replay through the same confirm-and-forfeit path as a seed load.
@@ -41,8 +42,8 @@ These findings come from reading the code and running the production build in Ch
 
 **Fix the efficiency stat**
 - `averageEfficiency` starts empty instead of 100.
-- Add a `ratedWins` count and average only over wins that had a Par.
-- Existing records without `ratedWins` fall back to `gamesWon`.
+- Average only over wins that had a Par. The number of those wins is the sum of the Ace–Bogey tier counts (`ratedWins()`), so no new field is needed and existing records work too.
+- Average time counts wins only, now that losses are recorded.
 
 **Check imported backups**
 - `importStatsJson` accepts a file only if it has at least one of `stats`, `history` or `dailyWins`, and each one present parses.

@@ -14,6 +14,7 @@ import {
   findSmartDestination,
   findSafeFoundationMove,
   getFoundationIndexForSuit,
+  VACUUM_MOVE_PREFIX,
 } from '../engines/safePlayEngine';
 import { useCardMotion } from '../hooks/useCardMotion';
 import { sound } from '../services/audioService';
@@ -135,7 +136,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       const result = applyKlondikeMove(state, source, target);
       if (!result) return;
       sound.playCardSnap();
-      onStateChange(result.next, `Safe-Play Vacuum: ${result.cards[0].label} to Foundation`);
+      onStateChange(result.next, `${VACUUM_MOVE_PREFIX} ${result.cards[0].label} to Foundation`);
     }, 140);
 
     return () => clearTimeout(timer);

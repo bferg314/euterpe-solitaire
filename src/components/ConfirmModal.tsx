@@ -120,7 +120,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
 
           <div className="confirm-footer-note">
-            Starting a new game will forfeit this board. This action cannot be undone.
+            Starting a new game forfeits this board and counts it as a loss in your stats. This can't be undone.
           </div>
         </div>
 

@@ -11,6 +11,7 @@ import {
   cloneKlondikeState,
   findAutoMove,
 } from './engines/klondikeEngine';
+import { VACUUM_MOVE_PREFIX } from './engines/safePlayEngine';
 import { dealPyramid, isPyramidWon, findPyramidHint, clonePyramidState } from './engines/pyramidEngine';
 import { createSeedForDifficulty, getDailyChallengeSeed } from './services/rngService';
 import { dailyCandidates, type FoundDeal } from './engines/dealFinder';
@@ -829,10 +830,21 @@ export const App: React.FC = () => {
     }
   };
 
+  // A game has started once the player moves. The Vacuum can sweep an Ace home on the deal, and that alone doesn't count.
+  const gameStarted =
+    !isWon && moveDescriptions.some((desc, i) => i > 0 && !desc.startsWith(VACUUM_MOVE_PREFIX));
+
+  // Leaving a started game counts as a loss; a replayed deal counts like any other.
+  const forfeitCurrentGame = () => {
+    if (gameStarted) {
+      recordGameResult(gameMode, difficulty, false, timeSeconds, moves, score, seed, par || undefined, parInfo?.ace);
+    }
+  };
+
   // Confirmation interceptors for New Deal, Mode Switching & Challenge Seeds
   const handleRequestSelectMode = (newMode: GameMode) => {
     if (newMode === gameMode) return;
-    if (moves > 0 && !isWon) {
+    if (gameStarted) {
       const targetName =
         newMode === 'pyramid'
           ? 'Pyramid Solitaire'
@@ -847,6 +859,7 @@ export const App: React.FC = () => {
         cancelLabel: 'Keep Playing',
         onConfirm: () => {
           setConfirmDialog(null);
+          forfeitCurrentGame();
           startNewDeal(newMode, difficulty);
         },
       });
@@ -856,7 +869,7 @@ export const App: React.FC = () => {
   };
 
   const handleRequestNewGame = () => {
-    if (moves > 0 && !isWon) {
+    if (gameStarted) {
       setConfirmDialog({
         isOpen: true,
         title: 'Start New Deal?',
@@ -865,6 +878,7 @@ export const App: React.FC = () => {
         cancelLabel: 'Keep Playing',
         onConfirm: () => {
           setConfirmDialog(null);
+          forfeitCurrentGame();
           startNewDeal(gameMode, difficulty);
         },
       });
@@ -874,8 +888,9 @@ export const App: React.FC = () => {
   };
 
   // `newSeed` is null when the player picked a difficulty without choosing a seed of their own.
-  const handleRequestApplySeed = (newSeed: string | null, newDiff: DifficultyLevel) => {
-    if (moves > 0 && !isWon) {
+  // `newMode` differs from the current mode when replaying a match from Stats.
+  const handleRequestApplySeed = (newSeed: string | null, newDiff: DifficultyLevel, newMode: GameMode = gameMode) => {
+    if (gameStarted) {
       setConfirmDialog({
         isOpen: true,
         title: 'Load Challenge Seed?',
@@ -885,12 +900,13 @@ export const App: React.FC = () => {
         onConfirm: () => {
           setConfirmDialog(null);
           setShowSeedModal(false);
-          startNewDeal(gameMode, newDiff, newSeed ?? undefined);
+          forfeitCurrentGame();
+          startNewDeal(newMode, newDiff, newSeed ?? undefined);
         },
       });
     } else {
       setShowSeedModal(false);
-      startNewDeal(gameMode, newDiff, newSeed ?? undefined);
+      startNewDeal(newMode, newDiff, newSeed ?? undefined);
     }
   };
 
@@ -1139,7 +1155,7 @@ export const App: React.FC = () => {
       {showStatsModal && (
         <StatsModal
           currentMode={gameMode}
-          onReplaySeed={(m, d, s) => startNewDeal(m, d, s)}
+          onReplaySeed={(m, d, s) => handleRequestApplySeed(s, d, m)}
           onClose={() => setShowStatsModal(false)}
         />
       )}
