@@ -24,7 +24,8 @@ function motionOffset(el: HTMLElement): Point {
  * (click, keyboard, draw, vacuum, auto-finish, undo), and nothing is left behind.
  *
  * Cards are the elements marked `data-motion-id` inside `boardRef`, matched by that id across
- * renders. Positions are relative to the board, so scrolling doesn't count as movement. Cards
+ * renders. They must be placed without a CSS transform (use top/left): the motion animates
+ * `transform`, which would override theirs and make the card jump when it lands. Positions are relative to the board, so scrolling doesn't count as movement. Cards
  * marked `data-from-stock` that weren't on show before (a Turn 3 draw shows only the stock's top
  * card) start from the stock, marked `data-card-origin="stock"`, when the stock shrank.
  *

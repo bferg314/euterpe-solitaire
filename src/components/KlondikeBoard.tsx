@@ -551,8 +551,9 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
                       data-motion-id={card.instanceId}
                       data-from-stock="true"
                       className={`waste-fanned-card ${isTop && held?.source.pile === 'waste' ? 'kb-held' : ''} ${isTop ? topSlotClass(1) : ''}`}
+                      // Offset with `left`, not a transform: card motion animates transforms.
                       style={{
-                        transform: `translateX(${idx * 16}px)`,
+                        left: `${idx * 16}px`,
                         zIndex: idx + 1,
                       }}
                     >
