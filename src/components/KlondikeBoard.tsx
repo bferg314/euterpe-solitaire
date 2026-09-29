@@ -505,6 +505,16 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
     setAnnouncement(handleCardClick(card) ? `Played ${cardName(card)}` : `No move for ${cardName(card)}`);
   };
 
+  // Rings a column's whole face-up run, or just its top card if the run is already ringed, ready
+  // for Space to pick it up or Enter to play it.
+  const toggleWholeRun = (col: number) => {
+    const cards = state.tableau[col];
+    const firstFaceUp = cards.findIndex((c) => c.faceUp);
+    if (firstFaceUp < 0) return;
+    const wholeRun = cursor.zone === 'tableau' && cursor.col === col && cursor.index === firstFaceUp;
+    moveCursorTo({ zone: 'tableau', col, index: wholeRun ? cards.length - 1 : firstFaceUp });
+  };
+
   const handleKey = (e: KeyboardEvent): boolean => {
     const busy = isFlyingRef.current;
     switch (e.key) {
@@ -555,6 +565,10 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       case 'F':
         if (!busy) sendToFoundation();
         return true;
+      case 'a':
+      case 'A':
+        if (!held && cursor.zone === 'tableau') toggleWholeRun(cursor.col);
+        return true;
       case 'Escape':
         if (!held) return false;
         setHeld(null);
@@ -563,6 +577,11 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       default:
         if (/^[1-7]$/.test(e.key)) {
           const col = Number(e.key) - 1;
+          // Pressing the number of the column you're already in works like A.
+          if (!held && cursor.zone === 'tableau' && cursor.col === col) {
+            toggleWholeRun(col);
+            return true;
+          }
           moveCursorTo({ zone: 'tableau', col, index: TOP_OF_COLUMN });
           if (held && !busy) dropOn({ pile: 'tableau', col });
           return true;
@@ -590,7 +609,7 @@ export const KlondikeBoard: React.FC<KlondikeBoardProps> = ({
       tabIndex={interactive ? 0 : -1}
       role="application"
       aria-roledescription="Klondike board"
-      aria-label="Klondike board. Arrow keys move, Space picks up or drops, Enter plays a card, D draws, 1 to 7 jump to a column. Press ? for all shortcuts."
+      aria-label="Klondike board. Arrow keys move, Space picks up or drops, Enter plays a card, D draws, 1 to 7 jump to a column, A selects the whole run. Press ? for all shortcuts."
       onFocus={keyboard.onBoardFocus}
     >
       {/* Golden Vector Flight Animation Overlay */}

@@ -39,6 +39,7 @@ const KLONDIKE_KEYS: [string[], string][] = [
   [['Space'], 'Pick up the cards under the cursor, then drop them on another pile'],
   [['Enter'], 'Play the card, same as clicking it'],
   [['1', '–', '7'], 'Jump to a column (drops held cards there)'],
+  [['A'], 'Select the whole face-up run in the column (again: just the top card). Pressing the column number again does the same'],
   [['F'], 'Send the card to its foundation'],
   [['D'], 'Draw from the stock, or recycle the waste'],
   [['W'], 'Jump to the waste'],
