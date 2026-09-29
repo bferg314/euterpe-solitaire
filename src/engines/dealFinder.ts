@@ -1,7 +1,9 @@
-import type { DifficultyLevel } from '../types/solitaire';
+import type { DifficultyLevel, GameMode } from '../types/solitaire';
 import type { LoadedDeck } from '../services/deckLoader';
 import { dealPyramid } from './pyramidEngine';
+import { dealKlondike } from './klondikeEngine';
 import { solvePyramid } from './solvers/pyramidSolver';
+import { solveKlondike } from './solvers/klondikeSolver';
 import { createSeedForDifficulty } from '../services/rngService';
 
 /**
@@ -34,8 +36,8 @@ export function dailyCandidates(base: string): string[] {
 
 export interface FoundDeal {
   seed: string;
-  /** Length of the deal's shortest winning line. */
-  ace: number;
+  /** Length of the deal's shortest winning line (Pyramid); null for Klondike, whose lines aren't proven shortest. */
+  ace: number | null;
   /** False when no candidate matched the difficulty band and this is the closest winnable one. */
   inBand: boolean;
 }
@@ -67,4 +69,41 @@ export function findWinnablePyramidDeal(
     }
   }
   return closest;
+}
+
+/**
+ * Node cap per Klondike candidate, for the solver's fast first pass (weight 5). Measured on 240
+ * deals (40 per difficulty, Turn 1 and 3): it keeps 166 of the 174 wins a 150k cap finds, while a
+ * deal it can't settle costs about 0.25 s instead of 0.9 s. Fixed, so the daily walk is the same
+ * on every machine.
+ */
+export const KLONDIKE_DEAL_SEARCH_MAX_NODES = 40_000;
+const KLONDIKE_DEAL_WEIGHT = 5;
+
+/**
+ * Finds a winnable Klondike deal: tries `seeds` in order, or fresh random seeds for the
+ * difficulty, until the solver finds a winning line for one. Difficulty stays with the dealing
+ * (Easy and Hard place the Aces): the solver's first lines are too rough to band deals by, as
+ * Pyramid does. Null if nothing winnable turned up in time.
+ */
+export function findWinnableKlondikeDeal(
+  deck: LoadedDeck,
+  difficulty: DifficultyLevel,
+  drawCount: 1 | 3,
+  seeds?: string[]
+): FoundDeal | null {
+  const candidates = seeds ?? Array.from({ length: MAX_ATTEMPTS }, () => createSeedForDifficulty(difficulty));
+  for (const seed of candidates) {
+    const deal = dealKlondike(deck, seed, drawCount, difficulty);
+    const result = solveKlondike(deal, { weight: KLONDIKE_DEAL_WEIGHT, maxNodes: KLONDIKE_DEAL_SEARCH_MAX_NODES });
+    if (result.status === 'solved') return { seed, ace: null, inBand: true };
+  }
+  return null;
+}
+
+/** A winnable deal for any game (see the Pyramid and Klondike searches above). */
+export function findWinnableDeal(deck: LoadedDeck, mode: GameMode, difficulty: DifficultyLevel, seeds?: string[]): FoundDeal | null {
+  return mode === 'pyramid'
+    ? findWinnablePyramidDeal(deck, difficulty, seeds)
+    : findWinnableKlondikeDeal(deck, difficulty, mode === 'klondike-3' ? 3 : 1, seeds);
 }

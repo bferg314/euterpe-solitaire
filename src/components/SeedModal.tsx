@@ -57,7 +57,7 @@ export const SeedModal: React.FC<SeedModalProps> = ({
   // True when the seed in the box came from a tier pick or Randomize rather than the player.
   const [seedIsGenerated, setSeedIsGenerated] = useState(false);
   const isPyramid = gameMode === 'pyramid';
-  const pickWinnable = isPyramid && winnableOnly;
+  const pickWinnable = winnableOnly;
 
   const todayDailySeed = getDailyChallengeSeed();
 
@@ -105,9 +105,7 @@ export const SeedModal: React.FC<SeedModalProps> = ({
             </div>
             <h4>{todayDailySeed}</h4>
             <p>
-              {isPyramid
-                ? 'Every player gets the same deal today, checked by the solver to be winnable.'
-                : 'Every player around the world receives this exact deal today.'}
+              Every player gets the same deal today, checked by the solver to be winnable.
             </p>
           </div>
           <button
@@ -136,7 +134,13 @@ export const SeedModal: React.FC<SeedModalProps> = ({
                   <Icon size={18} className={`tier-icon ${difficulty}`} />
                   <span className="tier-name">{name}</span>
                 </div>
-                <p className="tier-desc">{!isPyramid ? klondike : pickWinnable ? pyramid : 'Random deal: it may not be winnable.'}</p>
+                <p className="tier-desc">
+                  {isPyramid
+                    ? pickWinnable
+                      ? pyramid
+                      : 'Random deal: it may not be winnable.'
+                    : `${klondike} ${pickWinnable ? 'Checked winnable.' : 'It may not be winnable.'}`}
+                </p>
               </div>
             ))}
           </div>
@@ -148,9 +152,9 @@ export const SeedModal: React.FC<SeedModalProps> = ({
           <span>
             <strong>Winnable deals only</strong>
             <span className="winnable-toggle-hint">
-              Off, deals are shuffled at random like a real deck, so some can't be won. On, new Pyramid deals are
-              checked by the solver first and sorted into tiers by how long their best line is; Klondike joins once
-              its solver lands. Seeds you type are always dealt as-is.
+              Off, deals are shuffled at random like a real deck, so some can't be won. On, the solver finds a
+              winning line for each new deal first; Pyramid deals are also sorted into tiers by how long their best
+              line is. Seeds you type are always dealt as-is.
             </span>
           </span>
         </label>

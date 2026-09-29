@@ -27,7 +27,7 @@ This file holds rules only. What's built and what's next lives in `docs/FEATURE_
   - Pyramid uses par = Ace + 16 and 4-move bands, because a Pyramid slip usually costs a whole stock pass.
   - Par is cached from the Ace line (`parService.ts`), so formula changes apply to cached deals.
 - **Moves count exactly as the game counts them:** draws and recycles count; selecting a Pyramid card doesn't. Solvers and bots must use the same model.
-- **Winnable-only dealing** (Pyramid) goes through `src/engines/dealFinder.ts`. The Daily walk must stay deterministic (fixed node budget).
+- **Winnable-only dealing** (opt-in, off by default; always on for the Daily) goes through `src/engines/dealFinder.ts` for every game. The Daily walk must stay deterministic (fixed node budgets).
 
 ## Tests
 - Engine and solver tests load the real deck via `src/test/fixtures.ts` and use **fixed seeds with known results**. Never use random seeds; they make tests slow and flaky.
@@ -36,6 +36,9 @@ This file holds rules only. What's built and what's next lives in `docs/FEATURE_
 - **Known seeds for browser checks** (Pyramid, Medium):
   - `MED-90777`: winnable, 51-move Ace line, par 67. Play the solver's line to reach the Victory dialog on demand.
   - `MED-66732`: unwinnable. Exercises the warnings and unwinnable paths.
+- **Known seeds for browser checks** (Klondike Turn 3, Medium):
+  - `BENCH-84`: winnable, 94-move bot line (proven shortest), Par ~94. Fast to solve, with slips in the Trainer.
+  - `BENCH-53`: no winning line. Exercises the Trainer's best attempt.
 - A game with moves is saved to localStorage and resumes on reload; a game with 0 moves isn't saved, so a reload can land on a different mode than expected.
 
 ## Windows shell gotchas

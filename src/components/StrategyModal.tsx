@@ -117,6 +117,12 @@ const EuterpeTools: React.FC<{ pyramid?: boolean }> = ({ pyramid }) => (
           and marks tempting slips along the way with what they cost. Watch any slip to see it play out.
         </li>
       )}
+      {!pyramid && (
+        <li>
+          Deals are random, like a real deck, so some can't be won. Turn on <strong>Winnable deals only</strong> (seed
+          picker) and the solver finds a winning line for every new deal first.
+        </li>
+      )}
     </ul>
   </>
 );

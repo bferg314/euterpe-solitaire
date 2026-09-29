@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { dealPyramid } from './pyramidEngine';
+import { applyKlondikeSolverMove, dealKlondike, isKlondikeWon } from './klondikeEngine';
 import { solvePyramid } from './solvers/pyramidSolver';
-import { DEAL_SEARCH_MAX_NODES, dailyCandidates, findWinnablePyramidDeal } from './dealFinder';
+import { solveKlondike } from './solvers/klondikeSolver';
+import {
+  DEAL_SEARCH_MAX_NODES,
+  KLONDIKE_DEAL_SEARCH_MAX_NODES,
+  dailyCandidates,
+  findWinnableDeal,
+  findWinnableKlondikeDeal,
+  findWinnablePyramidDeal,
+} from './dealFinder';
 import { loadTestDeck } from '../test/fixtures';
 
 const deck = loadTestDeck();
@@ -35,4 +44,32 @@ describe('findWinnablePyramidDeal', () => {
       expect(solvePyramid(dealPyramid(deck, seed, 'daily'), { maxNodes: DEAL_SEARCH_MAX_NODES }).status).not.toBe('solved');
     }
   }, 60_000);
+});
+
+// Known Klondike deals (see klondikeSolver.test.ts): dealt as Turn 3 Medium, BENCH-53 has no
+// winning line and BENCH-84 has one. Turn 3 keeps these tests fast.
+describe('findWinnableKlondikeDeal', () => {
+  it("skips deals the solver can't win for the first one it can", () => {
+    expect(findWinnableKlondikeDeal(deck, 'medium', 3, ['BENCH-53', 'BENCH-84'])).toEqual({ seed: 'BENCH-84', ace: null, inBand: true });
+  });
+
+  it('returns null when none of the seeds can be won', () => {
+    expect(findWinnableKlondikeDeal(deck, 'medium', 3, ['BENCH-53'])).toBeNull();
+  });
+
+  it('walks the daily candidates in order to the first winnable deal, the same every time', () => {
+    const candidates = dailyCandidates('DAILY-2026-09-29');
+    const found = findWinnableKlondikeDeal(deck, 'daily', 3, candidates);
+    // That day's first three Turn 3 deals have no winning line, so the daily is the fourth.
+    expect(found).toEqual({ seed: 'DAILY-2026-09-29-4', ace: null, inBand: true });
+    const deal = dealKlondike(deck, found!.seed, 3, 'daily');
+    const line = solveKlondike(deal, { weight: 5, maxNodes: KLONDIKE_DEAL_SEARCH_MAX_NODES }).moves;
+    const end = line.reduce((state, move) => applyKlondikeSolverMove(state, move)!, deal);
+    expect(isKlondikeWon(end)).toBe(true);
+  });
+
+  it('findWinnableDeal runs the search for the game', () => {
+    expect(findWinnableDeal(deck, 'klondike-3', 'medium', ['BENCH-53', 'BENCH-84'])?.seed).toBe('BENCH-84');
+    expect(findWinnableDeal(deck, 'pyramid', 'medium', ['TEST-4', 'TEST-8', 'TEST-0'])?.seed).toBe('TEST-0');
+  }, 30_000);
 });

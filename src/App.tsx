@@ -306,12 +306,12 @@ export const App: React.FC = () => {
     };
   }, [isWon, isShuffling, deckLoading, trainer]);
 
-  // Winnable-only dealing (Pyramid, opt-in; always for the daily): random deals are searched in the solver worker for one that
-  // can be won at the chosen difficulty. The next deal is found in the background while you play,
-  // so New Deal is usually instant.
+  // Winnable-only dealing (opt-in, and always for the daily): random deals are searched in the
+  // solver worker for one that can be won at the chosen difficulty. The next deal is found in the
+  // background while you play, so New Deal is usually instant.
   const [findingDeal, setFindingDeal] = useState(false);
   const dealSearchRef = useRef(0);
-  const prefetchRef = useRef<{ difficulty: DifficultyLevel; promise: Promise<FoundDeal | null> } | null>(null);
+  const prefetchRef = useRef<{ mode: GameMode; difficulty: DifficultyLevel; promise: Promise<FoundDeal | null> } | null>(null);
 
   const startNewDeal = useCallback(
     (mode: GameMode = gameMode, diff: DifficultyLevel = difficulty, newSeed?: string) => {
@@ -319,7 +319,7 @@ export const App: React.FC = () => {
       const activeDeck = deck;
       // The daily is the same deal for everyone: the first winnable seed walking on from today's.
       const isDaily = diff === 'daily' && (!newSeed || newSeed === getDailyChallengeSeed());
-      const searchForWinnable = mode === 'pyramid' && (isDaily || (!newSeed && comfortSettings.winnableOnly));
+      const searchForWinnable = isDaily || (!newSeed && comfortSettings.winnableOnly);
       explicitSeedRef.current = Boolean(newSeed) && !isDaily;
 
       const deal = (finalSeed: string) => {
@@ -335,8 +335,9 @@ export const App: React.FC = () => {
 
       const token = ++dealSearchRef.current;
       const search = () =>
-        findWinnableDealAsync(activeDeck, diff, isDaily ? dailyCandidates(getDailyChallengeSeed()) : undefined);
-      const prefetched = !isDaily && prefetchRef.current?.difficulty === diff ? prefetchRef.current.promise : null;
+        findWinnableDealAsync(activeDeck, mode, diff, isDaily ? dailyCandidates(getDailyChallengeSeed()) : undefined);
+      const prefetch = prefetchRef.current;
+      const prefetched = !isDaily && prefetch?.mode === mode && prefetch.difficulty === diff ? prefetch.promise : null;
       prefetchRef.current = null;
       setFindingDeal(true);
       // A prefetch that got cancelled resolves null; search afresh in that case.
@@ -344,14 +345,15 @@ export const App: React.FC = () => {
         if (dealSearchRef.current !== token) return;
         setFindingDeal(false);
         if (found) {
-          rememberSolvedPar(mode, diff, found.seed, found.ace);
+          // Pyramid searches solve exactly, so Par is known already; Klondike works it out as usual.
+          if (found.ace !== null) rememberSolvedPar(mode, diff, found.seed, found.ace);
           deal(found.seed);
         } else {
           deal(createSeedForDifficulty(diff));
           setResumeMessage("Couldn't find a winnable deal in time, so this one may not be winnable.");
           setTimeout(() => setResumeMessage(null), 5000);
         }
-        if (!isDaily) prefetchRef.current = { difficulty: diff, promise: search() };
+        if (!isDaily) prefetchRef.current = { mode, difficulty: diff, promise: search() };
       });
     },
     [deck, gameMode, difficulty, startNewGameWithDeck, comfortSettings.winnableOnly]
@@ -895,7 +897,9 @@ export const App: React.FC = () => {
   // Keyboard shortcut listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // Typing in a field isn't a shortcut, but Esc still closes the modal the field is in.
+      const inField = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (inField && e.key !== 'Escape') return;
       // The Trainer handles its own keys; the game underneath stays untouched.
       if (trainer) return;
 
