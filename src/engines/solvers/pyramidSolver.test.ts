@@ -140,5 +140,6 @@ describe('solvePyramid on real deals', () => {
       }
     }
     expect(solved).toBeGreaterThan(0);
-  });
+    // About 2 s locally but ~5 s on the CI runner, so it needs more than Vitest's 5 s default.
+  }, 30_000);
 });
