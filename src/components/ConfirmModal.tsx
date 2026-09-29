@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import type { GameMode, DifficultyLevel } from '../types/solitaire';
 import { AlertTriangle, Clock, Play, RotateCcw, X, Hash } from 'lucide-react';
+import { modeLabel, difficultyLabel } from '../utils/labels';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -53,17 +54,6 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     return `${mins}:${s.toString().padStart(2, '0')}`;
   };
 
-  const getModeLabel = (mode: GameMode): string => {
-    switch (mode) {
-      case 'klondike-1':
-        return 'Klondike (Turn 1)';
-      case 'klondike-3':
-        return 'Klondike (Turn 3)';
-      case 'pyramid':
-        return 'Pyramid Solitaire';
-    }
-  };
-
   return (
     <div className="modal-backdrop confirm-modal-backdrop" onClick={onCancel}>
       <div
@@ -92,7 +82,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <div className="confirm-progress-card">
             <div className="confirm-progress-header">
               <span className="confirm-mode-tag">
-                {getModeLabel(currentMode)} • {difficulty.toUpperCase()}
+                {modeLabel(currentMode)} • {difficultyLabel(difficulty)}
               </span>
               <span className="confirm-warning-note">Current Game in Progress</span>
             </div>

@@ -11,6 +11,7 @@ import {
   cloneKlondikeState,
   findAutoMove,
 } from './engines/klondikeEngine';
+import { modeLabel } from './utils/labels';
 import { VACUUM_MOVE_PREFIX } from './engines/safePlayEngine';
 import { dealPyramid, isPyramidWon, findPyramidHint, clonePyramidState } from './engines/pyramidEngine';
 import { createSeedForDifficulty, getDailyChallengeSeed } from './services/rngService';
@@ -109,8 +110,8 @@ export const App: React.FC = () => {
       saveSettings(next);
       setResumeMessage(
         next.ambientVacuumEnabled
-          ? 'Safe-Play Foundation Vacuum: Enabled (Auto-sweeping safe cards)'
-          : 'Safe-Play Foundation Vacuum: Disabled'
+          ? "Auto-move safe cards: On. Cards that can't be needed again go to the foundations by themselves."
+          : 'Auto-move safe cards: Off'
       );
       setTimeout(() => setResumeMessage(null), 3000);
       return next;
@@ -181,6 +182,7 @@ export const App: React.FC = () => {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [showStrategyModal, setShowStrategyModal] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [rulesTab, setRulesTab] = useState<RulesTab>('klondike');
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogConfig | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
@@ -845,12 +847,7 @@ export const App: React.FC = () => {
   const handleRequestSelectMode = (newMode: GameMode) => {
     if (newMode === gameMode) return;
     if (gameStarted) {
-      const targetName =
-        newMode === 'pyramid'
-          ? 'Pyramid Solitaire'
-          : newMode === 'klondike-3'
-          ? 'Klondike (Turn 3)'
-          : 'Klondike (Turn 1)';
+      const targetName = modeLabel(newMode);
       setConfirmDialog({
         isOpen: true,
         title: `Switch to ${targetName}?`,
@@ -919,17 +916,18 @@ export const App: React.FC = () => {
       // The Trainer handles its own keys; the game underneath stays untouched.
       if (trainer) return;
 
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      } else if (mod && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
         e.preventDefault();
         handleRedo();
       } else if (e.key.toLowerCase() === 'u' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // A bare letter shouldn't undo behind an open modal or the Fork preview.
         if (boardKeyboardEnabled) handleUndo();
-      } else if (e.key.toLowerCase() === 'h') {
-        handleHint();
+      } else if (e.key.toLowerCase() === 'h' && !mod && !e.altKey) {
+        if (boardKeyboardEnabled) handleHint();
       } else if (e.key === '?') {
         setRulesTab('keyboard');
         setShowRulesModal(true);
@@ -962,6 +960,7 @@ export const App: React.FC = () => {
     !showThemeModal &&
     !showRulesModal &&
     !showStrategyModal &&
+    !headerMenuOpen &&
     !showForkModal &&
     forkPreviewIndex === null &&
     !trainer &&
@@ -1057,6 +1056,7 @@ export const App: React.FC = () => {
         onToggleSound={handleToggleSound}
         onOpenSeedModal={() => setShowSeedModal(true)}
         onOpenStatsModal={() => setShowStatsModal(true)}
+        onMenuOpenChange={setHeaderMenuOpen}
         onOpenThemeModal={() => setShowThemeModal(true)}
         onOpenDeckModal={() => setShowDeckModal(true)}
         onOpenTrainer={() => setTrainer({ seed, difficulty, mode: gameMode, tier: 'ace' })}
@@ -1155,6 +1155,7 @@ export const App: React.FC = () => {
       {showStatsModal && (
         <StatsModal
           currentMode={gameMode}
+          currentDifficulty={difficulty}
           onReplaySeed={(m, d, s) => handleRequestApplySeed(s, d, m)}
           onClose={() => setShowStatsModal(false)}
         />

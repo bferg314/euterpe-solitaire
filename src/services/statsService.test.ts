@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { exportStatsJson, getMatchHistory, getStats, importStatsJson, ratedWins, recordGameResult } from './statsService';
+import {
+  checkStatsBackup,
+  exportStatsJson,
+  getMatchHistory,
+  getStats,
+  importStatsJson,
+  ratedWins,
+  recordGameResult,
+} from './statsService';
 
 const store = new Map<string, string>();
 
@@ -63,6 +71,15 @@ describe('backup import', () => {
     expect(importStatsJson('{"stats":"[1,2]"}').ok).toBe(false);
     expect(importStatsJson('not json').ok).toBe(false);
     expect(getMatchHistory()).toHaveLength(1);
+  });
+
+  it('checks a backup without writing it, so the player can confirm first', () => {
+    win(100, 300);
+    loss(20, 60);
+    const backup = exportStatsJson();
+    store.clear();
+    expect(checkStatsBackup(backup)).toEqual({ ok: true, matches: 2 });
+    expect(getMatchHistory()).toHaveLength(0);
   });
 
   it('restores an exported backup and reports its match count', () => {

@@ -146,6 +146,7 @@ body, html {
 }
 
 .mode-tab {
+  white-space: nowrap;
   background: transparent;
   border: none;
   color: #94a3b8;
@@ -177,6 +178,8 @@ body, html {
 }
 
 .seed-display-pill {
+  font: inherit;
+  color: inherit;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -202,6 +205,10 @@ body, html {
 
 .pill-icon {
   color: var(--color-gold);
+}
+
+.pill-caret {
+  color: #94a3b8;
 }
 
 .diff-badge {
@@ -296,6 +303,168 @@ body, html {
 .icon-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* More menu: the settings, plus the Learn buttons on narrower screens. */
+.header-menu {
+  position: relative;
+}
+
+.icon-btn.menu-open {
+  background: rgba(212, 175, 55, 0.15);
+  border-color: rgba(212, 175, 55, 0.5);
+  color: var(--color-gold);
+}
+
+.header-menu-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--surface-panel);
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  animation: modal-fade-in 0.15s ease-out;
+}
+
+.header-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.header-menu-item:hover,
+.header-menu-item:focus-visible {
+  background: rgba(212, 175, 55, 0.14);
+  color: #fff;
+  outline: none;
+}
+
+.header-menu-item.narrow-only {
+  display: none;
+}
+
+.header-menu-icon {
+  display: flex;
+  color: var(--color-gold);
+}
+
+.header-menu-label {
+  flex: 1;
+}
+
+.header-menu-check {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.header-menu-check.on {
+  display: flex;
+  color: var(--color-gold);
+}
+
+/* Header pieces keep their size; the breakpoints below make room instead of squashing them. */
+.solitaire-header .action-btn,
+.solitaire-header .icon-btn,
+.seed-display-pill,
+.mode-tabs,
+.header-brand {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Header breakpoints, measured with Auto Finish showing (the widest case): everything needs 1493px,
+   short tabs 1395px, icon-only buttons 1157px, and without Score and Learn 1012px. Below that the
+   header splits into two rows. */
+@media (max-width: 1499px) {
+  .mode-tab-game {
+    display: none;
+  }
+}
+
+@media (max-width: 1399px) {
+  .brand-titles,
+  .action-label {
+    display: none;
+  }
+
+  .action-btn {
+    padding: 7px 9px;
+  }
+}
+
+@media (max-width: 1159px) {
+  .counter-score,
+  .header-learn {
+    display: none;
+  }
+
+  .header-menu-item.narrow-only {
+    display: flex;
+  }
+}
+
+@media (max-width: 1019px) {
+  .solitaire-header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .header-right {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+
+  /* The action row has room for labels again. */
+  .action-label {
+    display: inline;
+  }
+
+  .action-btn {
+    padding: 6px 12px;
+  }
+}
+
+@media (max-width: 619px) {
+  .header-left,
+  .header-center {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .header-right {
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .header-right .btn-divider,
+  .action-label {
+    display: none;
+  }
+
+  .action-btn {
+    padding: 7px 9px;
+  }
+
+  .stats-counters {
+    gap: 10px;
+  }
 }
 
 .action-btn {
@@ -1259,6 +1428,156 @@ body, html {
   gap: 8px;
 }
 
+/* Stats: the header and footer stay put while the content between them scrolls. */
+.stats-modal-card {
+  overflow: hidden;
+}
+
+.modal-card:focus {
+  outline: none;
+}
+
+.stats-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.history-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.history-table .replay-cell {
+  text-align: right;
+}
+
+.tier-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tier-chip {
+  font-size: 11px;
+  color: #cbd5e1;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  background: rgba(212, 175, 55, 0.08);
+}
+
+.tier-chip strong {
+  color: var(--color-gold);
+  margin-left: 2px;
+}
+
+.tier-chip.empty {
+  opacity: 0.55;
+}
+
+.stats-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stats-notice {
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.stats-notice.ok {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
+}
+
+.stats-notice.error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fecaca;
+}
+
+.stats-confirm-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 12px;
+  font-size: 13px;
+  color: #fef3c7;
+}
+
+.stats-confirm-row > span {
+  flex: 1 1 260px;
+}
+
+.stats-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 620px) {
+  .modal-card {
+    padding: 18px 16px;
+  }
+
+  .stat-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .modal-footer-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Match history becomes one card per match. */
+  .history-table-container {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .history-table thead {
+    display: none;
+  }
+
+  .history-table tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 6px 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .history-table td {
+    padding: 0;
+    border: none;
+  }
+
+  .history-table td[data-label]::before {
+    content: attr(data-label) ' ';
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .history-table .replay-cell {
+    grid-column: 3;
+    grid-row: 1 / span 3;
+    align-self: center;
+  }
+}
+
 /* Seed & Challenge Modal */
 .daily-challenge-hero {
   display: flex;
@@ -1349,6 +1668,40 @@ body, html {
 .tier-card.selected {
   border-color: var(--color-gold);
   background: rgba(212, 175, 55, 0.1);
+}
+
+.tier-card:focus-within {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+  .tiers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .daily-challenge-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .seed-input-row {
+    flex-wrap: wrap;
+  }
+
+  .seed-input-row .input-prefix-wrapper {
+    flex: 1 1 100%;
+  }
+
+  /* Keep Deal This Game in reach while the options scroll. */
+  .seed-modal-card .modal-actions-row {
+    position: sticky;
+    bottom: -18px;
+    margin: 0 -16px -18px;
+    padding: 12px 16px 18px;
+    background: var(--surface-panel);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
 }
 
 .tier-header {

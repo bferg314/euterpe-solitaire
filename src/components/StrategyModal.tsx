@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BookOpen, X, CheckCircle2, ListChecks } from 'lucide-react';
+import { modeLabel } from '../utils/labels';
 
 export type StrategyTab = 'turn1' | 'turn3' | 'pyramid';
 
@@ -9,8 +10,8 @@ interface StrategyModalProps {
 }
 
 const TABS: { id: StrategyTab; label: string }[] = [
-  { id: 'turn1', label: 'Klondike (Turn 1)' },
-  { id: 'turn3', label: 'Klondike (Turn 3)' },
+  { id: 'turn1', label: modeLabel('klondike-1') },
+  { id: 'turn3', label: modeLabel('klondike-3') },
   { id: 'pyramid', label: 'Pyramid' },
 ];
 
