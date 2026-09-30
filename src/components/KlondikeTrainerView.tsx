@@ -14,6 +14,7 @@ import {
 import { buildKlondikeTrainerAsync, cancelTrainerWork, findWinnableDealAsync } from '../services/solverClient';
 import { getCachedParInfo, getKnownKlondikeLine } from '../services/parService';
 import { formatParDelta } from '../utils/efficiencyRating';
+import { modeLabel } from '../utils/labels';
 import { KlondikeBoard } from './KlondikeBoard';
 import { TrainerControls } from './TrainerControls';
 import { useTrainerPlayback } from '../hooks/useTrainerPlayback';
@@ -104,7 +105,7 @@ export const KlondikeTrainerView: React.FC<KlondikeTrainerViewProps> = ({ deck, 
     setIndex(slip ? slip.at : 0);
   };
 
-  const modeName = gameMode === 'klondike-3' ? 'Klondike Turn 3' : 'Klondike Turn 1';
+  const modeName = modeLabel(gameMode);
   const lineLabel = !result
     ? 'Solving…'
     : watching

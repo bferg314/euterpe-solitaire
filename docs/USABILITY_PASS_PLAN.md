@@ -1,4 +1,4 @@
-# Usability Pass — Implementation Plan
+# Usability Pass — Implementation Plan `[Implemented]`
 
 This pass fixes the header menus and buttons, the Statistics viewer, and modal accessibility. It is sized for one focused session and ships as two PRs. Items the session leaves out are listed in the [Backlog](#backlog) so they can be picked up later.
 
@@ -60,6 +60,21 @@ These findings come from reading the code and running the production build in Ch
 - Mid-game, click Replay on a history row. The forfeit confirmation should appear.
 
 ## PR 2 — `feat/usability-pass`
+
+**Built differently from the plan, based on measurements:**
+- **Settings always live in More.** With full labels, the header needs 1493px while Auto Finish is showing, so folding only the settings at 1280px couldn't make it fit. Stats and Rules stay inline at every width.
+- **The breakpoints are measured:**
+
+  | Width | What changes |
+  | --- | --- |
+  | <1500px | Tabs drop "Klondike" |
+  | <1400px | Brand text goes; New Deal and Auto Finish become icons |
+  | <1160px | Score is hidden; Trainer and Strategy move into More |
+  | <1020px | Two rows, and the action labels come back |
+  | <620px | Phone layout |
+
+- **Mode names are "Klondike Turn 1 / Turn 3"**, not "Draw 1 / Draw 3". The Rules, Strategy and Trainer text already said Turn.
+- **The Seed modal is titled "Deal Options"**, matching the header's seed button.
 
 ### Step 1: Header
 
@@ -159,4 +174,5 @@ These were found in the assessment but left out of this session:
 - **Par while it's being worked out.** The header shows a bare "…". Use a small spinner with the tooltip "Par: working…".
 - **SCORE versus PAR.** The two counters sit side by side, and it isn't clear how they differ. Consider hiding Score by default now that Par is the main measure.
 - **Direct Daily entry point.** The Daily is two clicks deep, behind the seed pill. A header or More-menu item would make it easier to find.
+- **Theme cards.** In the Theme modal they're clickable `div`s, so the keyboard can't reach them. Make them a radio group like the Seed modal's difficulty tiers.
 - **Focus styles.** Only the ScrollRow arrows have a `:focus-visible` style. Everything else relies on the browser default ring, which doesn't match the gold parlor look.

@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import type { GameMode, DifficultyLevel } from '../types/solitaire';
 import { Trophy, Clock, CheckCircle2, RotateCcw, Play, Share2, GraduationCap, Flag } from 'lucide-react';
 import { sound } from '../services/audioService';
 import { EfficiencyBadge } from './EfficiencyBadge';
 import { calculateEfficiency, formatParDelta } from '../utils/efficiencyRating';
+import { modeLabel, difficultyLabel } from '../utils/labels';
 
 interface VictoryModalProps {
   gameMode: GameMode;
@@ -69,12 +70,14 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   };
 
   const eff = par > 0 ? calculateEfficiency(moves, par, ace, gameMode) : null;
+  const [copied, setCopied] = useState(false);
 
   const copyShareText = () => {
     const parInfo = eff ? ` (${formatParDelta(eff.delta)} ${eff.label}, ${eff.efficiencyPct}% Efficiency)` : '';
-    const text = `♠ Euterpe Solitaire: Solved ${gameMode.toUpperCase()} [${difficulty.toUpperCase()}] in ${moves} moves${parInfo}! Seed: ${seed}`;
+    const text = `♠ Euterpe Solitaire: Solved ${modeLabel(gameMode)} (${difficultyLabel(difficulty)}) in ${moves} moves${parInfo}! Seed: ${seed}`;
     navigator.clipboard.writeText(text);
-    alert('Victory score and efficiency rating copied to clipboard!');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -86,7 +89,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
 
         <h2 className="victory-title">Victory Achieved!</h2>
         <p className="victory-subtitle">
-          Superb strategy! You have mastered the cards on {difficulty.toUpperCase()} tier.
+          Superb strategy! You won {modeLabel(gameMode)} on {difficultyLabel(difficulty)}.
         </p>
 
         {/* Par rating */}
@@ -160,8 +163,14 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               <span>{gameMode === 'pyramid' ? 'Watch the Ace line' : "Watch the bot's line"}</span>
             </button>
           )}
-          <button className="secondary-action-btn" onClick={copyShareText} title="Share results with efficiency rating">
+          <button
+            className="secondary-action-btn"
+            onClick={copyShareText}
+            title="Copy your result to share"
+            aria-label={copied ? 'Copied' : 'Copy result to share'}
+          >
             <Share2 size={16} />
+            {copied && <span>Copied!</span>}
           </button>
         </div>
       </div>

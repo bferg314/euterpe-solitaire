@@ -15,7 +15,7 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 ### 1.2 Safe-Play Foundation Vacuum (Ambient Sweep) `[Implemented]`
 * **Description:** An optional parlor toggle that automatically lifts cards to the Foundation piles *only* when they are mathematically guaranteed to never be needed again in the Tableau (e.g., moving a 4 to a foundation only after both 3s of the opposite color are already locked into foundations).
 * **Value Proposition:** Relieves the repetitive chore of manual foundation stacking without the risk of accidental premature moves that could trap a critical sequence below.
-* **Status:** Implemented (Strict mathematical safety algorithm: Aces & 2s unconditionally; rank $R \ge 3$ only when both opposite-color foundations $\ge R - 1$; toggleable via the header bar `Sparkles` button, persistent in `localStorage`, cards slide home like any other move, and it's fully reversible via Undo).
+* **Status:** Implemented (Strict mathematical safety algorithm: Aces & 2s unconditionally; rank $R \ge 3$ only when both opposite-color foundations $\ge R - 1$; toggled as "Auto-move safe cards" in the header's More menu, persistent in `localStorage`, cards slide home like any other move, and it's fully reversible via Undo).
 
 ### 1.3 Stock Wheel Scrubbing
 * **Description:** In 3-card Klondike, allows mouse-wheel scrolling or a continuous horizontal swipe across the stock pile to rapidly cycle through draw rotations, automatically braking when a playable card hits the waste.
@@ -30,6 +30,16 @@ This document sets aside high-potential product and UX enhancements for **Euterp
 * **Description:** An option to have new deals checked by the solver before they're dealt, so every random deal can be won. Difficulty comes from the deal itself (the length of its best line), the Daily Challenge walks from the day's seed to the first winnable deal so it's the same for everyone, and a seed you type yourself is dealt as-is with a heads-up if it can't be won.
 * **Value Proposition:** Nobody wants to spend forty moves on a deal that was never winnable; losses become the player's to learn from, not the shuffle's.
 * **Status:** Pyramid: opt-in, off by default, since deals are random like a real deck (toggle in the seed picker; the Daily Challenge is always winnable), next deal prefetched in the background so New Deal is usually instant, difficulty bands Easy ≤55 / Medium 56–60 / Hard 61+ moves. Klondike: the same opt-in toggle and a Daily checked winnable; the solver's fast first pass (40k-node cap) checks each deal in milliseconds when it's winnable, and difficulty stays with the Easy/Medium/Hard dealing, since the solver's first lines are too rough to band deals by.
+
+### 1.6 Usability Pass `[Implemented]`
+* **Description:** The header, menus, Statistics viewer and modals work at every screen width and from the keyboard, and the stats are honest.
+* **Value Proposition:** Every control can be reached on a laptop or phone, and the numbers in Stats can be trusted.
+* **Status:** Implemented:
+  * **Stats:** abandoned games count as losses, Replay asks before discarding a game, efficiency is averaged over rated wins only, and backups are checked before they replace anything.
+  * **Header:** grouped Play / Learn / Stats and Rules, with settings in a More menu. It sheds labels at measured breakpoints (1500/1400/1160px) and splits into rows below 1020px.
+  * **Modals:** a shared `Modal` gives dialogs focus handling and named close buttons.
+  * **Stats viewer:** filtered history with a card layout on phones, plus one set of mode and difficulty names.
+  * See `docs/USABILITY_PASS_PLAN.md`, whose Backlog lists what's left.
 
 ---
 

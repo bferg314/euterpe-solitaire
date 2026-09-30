@@ -211,26 +211,45 @@ export interface ImportResult {
   matches: number;
 }
 
-/** Restores a backup from `exportStatsJson`. Nothing is written unless the whole file checks out. */
-export function importStatsJson(jsonStr: string): ImportResult {
-  const failed = { ok: false, matches: 0 };
+type BackupPart = readonly [key: string, raw: string];
+
+/** The parts of a backup from `exportStatsJson` to write, or null when the file isn't a valid backup. */
+function parseBackup(jsonStr: string): { parts: BackupPart[]; matches: number } | null {
   try {
     const parsed = JSON.parse(jsonStr);
-    if (!parsed || typeof parsed !== 'object') return failed;
-    const parts = [
+    if (!parsed || typeof parsed !== 'object') return null;
+    const checks = [
       [STATS_STORAGE_KEY, parsed.stats, (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v)],
       [HISTORY_STORAGE_KEY, parsed.history, Array.isArray],
       [DAILY_WINS_KEY, parsed.dailyWins, Array.isArray],
     ] as const;
-    const present = parts.filter(([, raw]) => raw !== undefined && raw !== null);
-    if (present.length === 0) return failed;
-    for (const [, raw, isValid] of present) {
-      if (typeof raw !== 'string' || !isValid(JSON.parse(raw))) return failed;
+    const present = checks.filter(([, raw]) => raw !== undefined && raw !== null);
+    if (present.length === 0) return null;
+    const parts: BackupPart[] = [];
+    let matches = 0;
+    for (const [key, raw, isValid] of present) {
+      if (typeof raw !== 'string') return null;
+      const value = JSON.parse(raw);
+      if (!isValid(value)) return null;
+      if (key === HISTORY_STORAGE_KEY) matches = (value as unknown[]).length;
+      parts.push([key, raw]);
     }
-    for (const [key, raw] of present) localStorage.setItem(key, raw as string);
-    const matches = typeof parsed.history === 'string' ? (JSON.parse(parsed.history) as unknown[]).length : 0;
-    return { ok: true, matches };
+    return { parts, matches };
   } catch {
-    return failed;
+    return null;
   }
+}
+
+/** Checks a backup without writing anything, so the player can confirm before it replaces their stats. */
+export function checkStatsBackup(jsonStr: string): ImportResult {
+  const backup = parseBackup(jsonStr);
+  return backup ? { ok: true, matches: backup.matches } : { ok: false, matches: 0 };
+}
+
+/** Restores a backup from `exportStatsJson`. Nothing is written unless the whole file checks out. */
+export function importStatsJson(jsonStr: string): ImportResult {
+  const backup = parseBackup(jsonStr);
+  if (!backup) return { ok: false, matches: 0 };
+  for (const [key, raw] of backup.parts) localStorage.setItem(key, raw);
+  return { ok: true, matches: backup.matches };
 }
